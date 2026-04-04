@@ -1,0 +1,29 @@
+{
+  "name": "axiom-coding-agent-setup",
+  "version": "1.0.0",
+  "description": "CLI tool to download AXIOM coding agent setup files into your project",
+  "main": "bin/cli.js",
+  "bin": {
+    "axiom-coding-agent-setup": "bin/cli.js",
+    "axiom-setup": "bin/cli.js"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "axiom",
+    "coding-agent",
+    "setup",
+    "claude",
+    "ai-agent"
+  ],
+  "author": "mcikalmerdeka",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mcikalmerdeka/axiom-coding-agent-setup.git"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}
