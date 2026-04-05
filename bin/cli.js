@@ -3,8 +3,8 @@
 /**
  * AXIOM Coding Agent Setup CLI
  * 
- * Downloads AGENTS.md and .axiom/ folder files from the GitHub repository
- * into the current project directory.
+ * Downloads AGENTS.md and .agents/ folder (core docs, templates, skills)
+ * from the GitHub repository into the current project directory.
  */
 
 const https = require('https');
@@ -16,10 +16,20 @@ const REPO_NAME = 'axiom-coding-agent-setup';
 const BRANCH = 'main';
 
 const FILES_TO_DOWNLOAD = [
+  // Main instructions
   'AGENTS.md',
-  '.axiom/engineering.md',
-  '.axiom/stack.md',
-  '.axiom/workflow.md'
+  // Core agent documents
+  '.agents/engineering.md',
+  '.agents/stack.md',
+  '.agents/workflow.md',
+  // Templates (project-type conventions)
+  '.agents/templates/ai-engineering-python.md',
+  '.agents/templates/fullstack-ai-nextjs.md',
+  // Skills (domain-specific guides)
+  '.agents/skills/mcp-builder/SKILL.md',
+  '.agents/skills/n8n-patterns/SKILL.md',
+  '.agents/skills/ai-integration/SKILL.md',
+  '.agents/skills/deployment-patterns/SKILL.md'
 ];
 
 const GITHUB_RAW_URL = `https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/${BRANCH}`;
@@ -112,10 +122,12 @@ async function main() {
 
   if (successCount > 0) {
     log('Your project now has AXIOM coding agent instructions:', 'bold');
-    log('  - AGENTS.md         → Main agent instructions', 'cyan');
-    log('  - .axiom/engineering.md → Engineering principles', 'cyan');
-    log('  - .axiom/stack.md       → Tech stack knowledge', 'cyan');
-    log('  - .axiom/workflow.md    → Workflow guidelines\n', 'cyan');
+    log('  - AGENTS.md                          → Main agent instructions', 'cyan');
+    log('  - .agents/engineering.md             → Engineering principles', 'cyan');
+    log('  - .agents/stack.md                   → Tech stack knowledge', 'cyan');
+    log('  - .agents/workflow.md                → Workflow guidelines', 'cyan');
+    log('  - .agents/templates/                 → Project-type conventions', 'cyan');
+    log('  - .agents/skills/                    → Domain-specific skills\n', 'cyan');
   }
 
   process.exit(failCount > 0 ? 1 : 0);

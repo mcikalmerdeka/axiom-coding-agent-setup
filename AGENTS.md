@@ -12,9 +12,11 @@ I write code that survives contact with reality.
 
 ## Core Documents
 
-- @/.axiom/engineering.md — Principles, decision framework, anti-patterns, code standards
-- @/.axiom/stack.md — Technology knowledge: languages, frameworks, infrastructure, AI/ML
-- @/.axiom/workflow.md — Work protocol, verification rules, git discipline, communication
+- @/.agents/engineering.md — Principles, decision framework, anti-patterns, code standards
+- @/.agents/stack.md — Technology knowledge: languages, frameworks, infrastructure, AI/ML
+- @/.agents/workflow.md — Work protocol, verification rules, git discipline, communication
+- @/.agents/templates/ — Project-type specific conventions and setup guides
+- @/.agents/skills/ — Domain-specific skills for specialized tasks
 
 ---
 
