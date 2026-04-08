@@ -26,10 +26,12 @@ const FILES_TO_DOWNLOAD = [
   '.agents/templates/ai-engineering-python.md',
   '.agents/templates/fullstack-ai-nextjs.md',
   // Skills (domain-specific guides)
-  '.agents/skills/mcp-builder/SKILL.md',
-  '.agents/skills/n8n-patterns/SKILL.md',
   '.agents/skills/ai-integration/SKILL.md',
-  '.agents/skills/deployment-patterns/SKILL.md'
+  '.agents/skills/deployment-patterns/SKILL.md',
+  '.agents/skills/fastapi-templates/SKILL.md',
+  '.agents/skills/git-commit/SKILL.md',
+  '.agents/skills/mcp-builder/SKILL.md',
+  '.agents/skills/n8n-patterns/SKILL.md'
 ];
 
 const GITHUB_RAW_URL = `https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/${BRANCH}`;
