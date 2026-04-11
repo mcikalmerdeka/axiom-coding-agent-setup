@@ -1,0 +1,47 @@
+{
+  "mcpServers": {
+    "gradio": {
+      "type": "sse",
+      "url": "https://gradio-docs-mcp.hf.space/gradio_api/mcp/",
+      "headers": {}
+    },
+    "apify": {
+      "type": "sse",
+      "url": "https://mcp.apify.com/?tools=docs",
+      "headers": {}
+    },
+    "Agno": {
+      "name": "Agno",
+      "url": "https://docs.agno.com/mcp",
+      "headers": {}
+    },
+    "Docs by LangChain": {
+      "name": "Docs by LangChain",
+      "url": "https://docs.langchain.com/mcp",
+      "headers": {}
+    },
+    "langfuse-docs": {
+      "type": "sse",
+      "url": "https://langfuse.com/api/mcp",
+      "headers": {}
+    },
+    "n8n-docs": {
+      "type": "http",
+      "url": "https://n8n.mcp.kapa.ai/",
+      "headers": {}
+    },
+    "exa": {
+      "name": "exa",
+      "type": "http",
+      "url": "https://mcp.exa.ai/mcp",
+      "headers": {}
+    },
+    "Neon": {
+      "type": "http",
+      "url": "https://mcp.neon.tech/mcp",
+      "headers": {
+        "Authorization": "Bearer napi_8jp6kt4ci2ob5lz0jzgv5wivdov439h72if6hg4zqyy2w1krw8f0thwmzl0e5dpz"
+      }
+    }
+  }
+}
