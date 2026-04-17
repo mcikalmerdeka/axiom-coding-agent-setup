@@ -19,7 +19,7 @@ const FILES_TO_DOWNLOAD = [
   // Main instructions
   'AGENTS.md',
   // OpenCode configuration
-  '.opencode.json',
+  'opencode.json',
   // Core agent documents
   '.agents/engineering.md',
   '.agents/stack.md',
