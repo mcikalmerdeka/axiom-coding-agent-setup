@@ -1,4 +1,5 @@
 {
+  "plugin": ["superpowers@git+https://github.com/obra/superpowers.git"],
   "mcpServers": {
     "gradio": {
       "type": "sse",
@@ -11,12 +12,12 @@
       "headers": {}
     },
     "Agno": {
-      "name": "Agno",
+      "type": "sse",
       "url": "https://docs.agno.com/mcp",
       "headers": {}
     },
     "Docs by LangChain": {
-      "name": "Docs by LangChain",
+      "type": "sse",
       "url": "https://docs.langchain.com/mcp",
       "headers": {}
     },
@@ -31,7 +32,6 @@
       "headers": {}
     },
     "exa": {
-      "name": "exa",
       "type": "http",
       "url": "https://mcp.exa.ai/mcp",
       "headers": {}
