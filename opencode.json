@@ -51,6 +51,11 @@
       "headers": {
         "Authorization": "Bearer napi_8jp6kt4ci2ob5lz0jzgv5wivdov439h72if6hg4zqyy2w1krw8f0thwmzl0e5dpz"
       }
+    },
+    "eraser": {
+      "type": "remote",
+      "url": "https://app.eraser.io/api/mcp",
+      "enabled": true
     }
   }
 }
