@@ -20,6 +20,8 @@ const FILES_TO_DOWNLOAD = [
   'AGENTS.md',
   // OpenCode configuration
   'opencode.json',
+  // Environment variables template
+  '.env.axiom',
   // Core agent documents
   '.agents/engineering.md',
   '.agents/stack.md',
@@ -28,12 +30,18 @@ const FILES_TO_DOWNLOAD = [
   '.agents/templates/ai-engineering-python.md',
   '.agents/templates/fullstack-ai-nextjs.md',
   // Skills (domain-specific guides)
+  '.agents/skills/agent-browser/SKILL.md',
   '.agents/skills/ai-integration/SKILL.md',
   '.agents/skills/deployment-patterns/SKILL.md',
+  '.agents/skills/developing-with-streamlit/SKILL.md',
+  '.agents/skills/fastapi/SKILL.md',
   '.agents/skills/fastapi-templates/SKILL.md',
+  '.agents/skills/frontend-design/SKILL.md',
   '.agents/skills/git-commit/SKILL.md',
+  '.agents/skills/gradio/SKILL.md',
   '.agents/skills/mcp-builder/SKILL.md',
-  '.agents/skills/n8n-patterns/SKILL.md'
+  '.agents/skills/n8n-patterns/SKILL.md',
+  '.agents/skills/ui-ux-pro-max/SKILL.md'
 ];
 
 const GITHUB_RAW_URL = `https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/${BRANCH}`;
@@ -127,6 +135,8 @@ async function main() {
   if (successCount > 0) {
     log('Your project now has AXIOM coding agent instructions:', 'bold');
     log('  - AGENTS.md                          → Main agent instructions', 'cyan');
+    log('  - opencode.json                      → OpenCode IDE configuration', 'cyan');
+    log('  - .env.axiom                         → Environment variables template', 'cyan');
     log('  - .agents/engineering.md             → Engineering principles', 'cyan');
     log('  - .agents/stack.md                   → Tech stack knowledge', 'cyan');
     log('  - .agents/workflow.md                → Workflow guidelines', 'cyan');
