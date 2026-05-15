@@ -1,0 +1,198 @@
+{
+  "$schema": "https://raw.githubusercontent.com/code-yeongyu/oh-my-openagent/dev/assets/oh-my-opencode.schema.json",
+  "agents": {
+    // === ORCHESTRATION CORE ===
+    // Kimi K2.6: #1 open-weight for long-horizon agentic work, 300-subagent swarm,
+    // 12h autonomous sessions, officially omo's top non-Claude fallback for Sisyphus.
+    // Fallback: DeepSeek V4 Pro for its raw SWE-bench muscle when K2.6 is unavailable.
+    "sisyphus": {
+      "model": "opencode-go/kimi-k2.6",
+      "fallback_models": [
+        { "model": "opencode-go/deepseek-v4-pro" }
+      ]
+    },
+
+    // === PLANNING & STRATEGY ===
+    // Prometheus auto-detects model family and switches prompts — Kimi K2.6 fits the
+    // Claude-like instruction-following prompt that omo uses for strategic planning.
+    // Fallback: GLM-5.1 for its independently verified long-horizon execution loop.
+    "prometheus": {
+      "model": "opencode-go/kimi-k2.6",
+      "fallback_models": [
+        { "model": "opencode-go/glm-5.1" }
+      ]
+    },
+
+    // === PLAN REVIEW ===
+    // Metis is the plan reviewer — needs strong reasoning + precision.
+    // Kimi K2.6 excels at catching non-obvious bugs and maintaining architectural integrity
+    // over extended review sessions per enterprise beta feedback.
+    // Fallback: GLM-5.1 which ranked #1 on NL2Repo for codebase structure comprehension.
+    "metis": {
+      "model": "opencode-go/kimi-k2.6",
+      "fallback_models": [
+        { "model": "opencode-go/glm-5.1" }
+      ]
+    },
+
+    // === ARCHITECTURE & DEBUGGING ===
+    // Oracle needs surgical precision in large codebases — Kimi K2.6 won benchmarks
+    // specifically on async/TypeVar edge-case bugs that require multi-cycle inference state.
+    // Fallback: DeepSeek V4 Pro, strongest on SWE-bench Verified (80.6%) and Codeforces (3206).
+    "oracle": {
+      "model": "opencode-go/kimi-k2.6",
+      "fallback_models": [
+        { "model": "opencode-go/deepseek-v4-pro" }
+      ]
+    },
+
+    // === HIGH-ACCURACY REVIEW ===
+    // Momus is the strictness reviewer — prompt is tuned for Claude-like models.
+    // GLM-5.1 promoted to primary: independently verified Code Arena Elo 1530 (#3 globally),
+    // spontaneously applied composition patterns in head-to-head tests vs K2.6.
+    // Fallback: Kimi K2.6 for its 12% improvement in code generation accuracy over K2.5.
+    "momus": {
+      "model": "opencode-go/glm-5.1",
+      "fallback_models": [
+        { "model": "opencode-go/kimi-k2.6" }
+      ]
+    },
+
+    // === TODO ORCHESTRATION ===
+    // Atlas is the task/todo orchestrator — auto-detects model family.
+    // Kimi K2.6 is the best fit for long multi-step coordination (300 sub-agents, 4000 steps).
+    // Fallback: DeepSeek V4 Pro for its $3.48/M cost efficiency at scale.
+    "atlas": {
+      "model": "opencode-go/kimi-k2.6",
+      "fallback_models": [
+        { "model": "opencode-go/deepseek-v4-pro" }
+      ]
+    },
+
+    // === DOCS & CODE SEARCH ===
+    // Librarian does documentation lookup and contextual code search — benefits most from
+    // Qwen3.6 Plus's 1M token context (vs K2.6's 256K ceiling). Handles full repo ingestion
+    // in a single pass. 4-6x cheaper than Claude-class for large-context read-heavy work.
+    // Fallback: DeepSeek V4 Pro — also 1M context, strong on LiveCodeBench (93.5%).
+    "librarian": {
+      "model": "opencode-go/qwen3.6-plus",
+      "fallback_models": [
+        { "model": "opencode-go/deepseek-v4-pro" }
+      ]
+    },
+
+    // === FAST CODEBASE GREP ===
+    // Explore is a fast grep/search agent — speed matters more than raw intelligence here.
+    // Qwen3.6 Plus runs 2-3x faster TPS than Claude Opus and has 1M context for large repos.
+    // Fallback: GLM-5.1 for its 55+ tokens/sec generation speed.
+    "explore": {
+      "model": "opencode-go/qwen3.6-plus",
+      "fallback_models": [
+        { "model": "opencode-go/glm-5.1" }
+      ]
+    },
+
+    // === VISION / SCREENSHOTS ===
+    // Multimodal-looker needs a model with solid vision. Kimi K2.6 has native multimodality
+    // and specifically handles visual-to-code workflows (UI designs → working code).
+    // No fallback: this is the only model in the stack with reliable multimodal support.
+    "multimodal-looker": {
+      "model": "opencode-go/kimi-k2.6"
+    },
+
+    // === JUNIOR WORKER ===
+    // Sisyphus-Junior handles delegated subtasks — Kimi K2.6 maintains session stability
+    // for parallel spawned workers (tool invocation success rate 96.60% per CodeBuddy eval).
+    // Fallback: DeepSeek V4 Pro for cost efficiency on high-volume parallel calls.
+    "sisyphus-junior": {
+      "model": "opencode-go/kimi-k2.6",
+      "fallback_models": [
+        { "model": "opencode-go/deepseek-v4-pro" }
+      ]
+    }
+  },
+
+  "categories": {
+    // === VISUAL / FRONTEND ENGINEERING ===
+    // GLM-5.1 promoted to primary: #3 globally on agentic webdev (Arena.ai Elo 1530),
+    // produced correct Tailwind + TypeScript components on first pass in head-to-head tests.
+    // Kimi K2.6 as fallback — strong on visual-to-code via native multimodal training.
+    "visual-engineering": {
+      "model": "opencode-go/glm-5.1",
+      "fallback_models": [
+        { "model": "opencode-go/kimi-k2.6" }
+      ]
+    },
+
+    // === MAXIMUM REASONING ===
+    // Ultrabrain is the highest-stakes category — Kimi K2.6 leads open-weight AI Index (54).
+    // Fallback: DeepSeek V4 Pro for its Codeforces 3206 and LiveCodeBench 93.5% supremacy.
+    "ultrabrain": {
+      "model": "opencode-go/kimi-k2.6",
+      "fallback_models": [
+        { "model": "opencode-go/deepseek-v4-pro" }
+      ]
+    },
+
+    // === DEEP / COMPLEX WORK ===
+    // Kimi K2.6: best open-source for long-horizon, sustained multi-step execution.
+    // Fallback: GLM-5.1 — demonstrated 655-iteration autonomous optimization loop,
+    // 8h uninterrupted task execution, strongest open-weight for backend deep dives.
+    "deep": {
+      "model": "opencode-go/kimi-k2.6",
+      "fallback_models": [
+        { "model": "opencode-go/glm-5.1" }
+      ]
+    },
+
+    // === CREATIVE / UI ARTISTRY ===
+    // GLM-5.1 as primary: spontaneously applies composition patterns, correct JSX on first
+    // pass, Code Arena voters prefer it for frontend aesthetics in head-to-head evals.
+    // Kimi K2.6 as fallback: Moonshot claims Awwwards-level frontend from single prompts.
+    "artistry": {
+      "model": "opencode-go/glm-5.1",
+      "fallback_models": [
+        { "model": "opencode-go/kimi-k2.6" }
+      ]
+    },
+
+    // === QUICK / TRIVIAL TASKS ===
+    // GLM-5.1: 55+ tokens/sec, HN devs rate it as "actually usable" for piecemeal tasks,
+    // compares well to GPT-5.4 for scoped, well-defined subtasks.
+    // No fallback needed — quick tasks should just pass or skip to the next agent.
+    "quick": {
+      "model": "opencode-go/glm-5.1"
+    },
+
+    // === UNSPECIFIED / MODERATE TASKS ===
+    // Kimi K2.6 is the safest general-purpose choice for ambiguous category routing.
+    // Fallback: Qwen3.6 Plus at $0.50/M input — 30x cheaper than Claude, close in SWE-bench.
+    "unspecified-low": {
+      "model": "opencode-go/kimi-k2.6",
+      "fallback_models": [
+        { "model": "opencode-go/qwen3.6-plus" }
+      ]
+    },
+
+    // === UNSPECIFIED / COMPLEX TASKS ===
+    // Same primary as unspecified-low — Kimi K2.6 handles both well.
+    // Fallback: GLM-5.1 rather than Qwen, for stronger reasoning depth on hard unknowns.
+    "unspecified-high": {
+      "model": "opencode-go/kimi-k2.6",
+      "fallback_models": [
+        { "model": "opencode-go/glm-5.1" }
+      ]
+    },
+
+    // === WRITING / DOCUMENTATION ===
+    // Kimi K2.6: strong instruction-following and consistent output quality.
+    // Fallback: GLM-5.1 — bilingual training (EN/CN) useful for mixed-language codebases
+    // and documentation; Qwen3.6 Plus also strong here but GLM edges it on coherence.
+    "writing": {
+      "model": "opencode-go/kimi-k2.6",
+      "fallback_models": [
+        { "model": "opencode-go/glm-5.1" }
+      ]
+    }
+  }
+}
