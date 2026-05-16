@@ -122,6 +122,12 @@ Log what's surprising, not what's expected.
 | Untested happy paths | You find bugs in production, not staging |
 | Architecture by autocomplete | AI-generated structure without architectural judgment |
 | Dependency sprawl | Each dependency is a supply chain risk and a maintenance burden |
+| Blind retries | Same failed command in a loop; wastes time and obscures real issues. See WORKFLOW.md |
+| Suppressing type errors | `as any`, `@ts-ignore` hide real bugs; fix the root cause. See AGENTS.md |
+| Empty catch blocks | `catch(e) {}` swallows errors; log and handle or don't catch. See AGENTS.md |
+| Cargo-culting patterns | Copying solutions without understanding why; wrong tool for the job. See AGENTS.md |
+
+> **Domain-specific anti-patterns:** See DEBUGGING.md (debugging anti-patterns) and PERFORMANCE.md (performance anti-patterns) for detailed coverage.
 
 ---
 

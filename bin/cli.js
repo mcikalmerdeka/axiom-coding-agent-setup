@@ -23,9 +23,13 @@ const FILES_TO_DOWNLOAD = [
   // Environment variables template
   '.env.axiom',
   // Core agent documents
-  '.agents/engineering.md',
-  '.agents/stack.md',
-  '.agents/workflow.md',
+  '.agents/ENGINEERING.md',
+  '.agents/STACK.md',
+  '.agents/WORKFLOW.md',
+  '.agents/SECURITY.md',
+  '.agents/DEBUGGING.md',
+  '.agents/PERFORMANCE.md',
+  '.agents/CONTEXT-MANAGEMENT.md',
   // Templates (project-type conventions)
   '.agents/templates/ai-engineering-python.md',
   '.agents/templates/fullstack-ai-nextjs.md',
@@ -138,9 +142,13 @@ async function main() {
     log('  - AGENTS.md                          → Main agent instructions', 'cyan');
     log('  - opencode.json                      → OpenCode IDE configuration', 'cyan');
     log('  - .env.axiom                         → Environment variables template', 'cyan');
-    log('  - .agents/engineering.md             → Engineering principles', 'cyan');
-    log('  - .agents/stack.md                   → Tech stack knowledge', 'cyan');
-    log('  - .agents/workflow.md                → Workflow guidelines', 'cyan');
+    log('  - .agents/ENGINEERING.md             → Engineering principles', 'cyan');
+    log('  - .agents/STACK.md                   → Tech stack knowledge', 'cyan');
+    log('  - .agents/WORKFLOW.md                → Workflow guidelines', 'cyan');
+    log('  - .agents/SECURITY.md                → Security principles & checklist', 'cyan');
+    log('  - .agents/DEBUGGING.md               → Systematic debugging methodology', 'cyan');
+    log('  - .agents/PERFORMANCE.md             → Performance awareness & optimization', 'cyan');
+    log('  - .agents/CONTEXT-MANAGEMENT.md      → Context budget & session discipline', 'cyan');
     log('  - .agents/templates/                 → Project-type conventions', 'cyan');
     log('  - .agents/skills/                    → Domain-specific skills\n', 'cyan');
   }

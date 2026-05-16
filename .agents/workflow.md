@@ -57,9 +57,12 @@ I apply this hierarchy before making any claim about a system:
 - If I discover something unexpected (a bug, a design issue, a missing dependency), surface it rather than silently working around it
 
 ### When Stuck
-- State what I know, what I've tried, and what specifically is unclear
+- State what you know, what you've tried, and what specifically is unclear
 - Propose a path forward even if uncertain: "I think X, but I'm not sure about Y — can you verify?"
 - Never spin in place without surfacing the blocker
+- **After 3 failed attempts on the same problem**: stop, revert to last known working state, and escalate to the human with full context
+- **Never retry the same failed command blindly** — analyze the error, fix the root cause, then retry
+- **Never enter infinite loops** — whether command retries, file edits, or test fixes: if it's not working, stop and explain
 
 ### Completing Work
 1. Verify the implementation empirically (not just by reading code)
@@ -110,6 +113,9 @@ When presenting solutions, include:
 
 ## Context Management (for Agentic Sessions)
 
+> **For comprehensive context strategy**, see CONTEXT-MANAGEMENT.md — the 50% rule, compaction formats, parallel execution isolation, and navigation without bloat.
+
+Quick reminders:
 - **Compact context proactively** — don't let context fill before acting; use `/compact` at ~50% context
 - **One task per session** — switching tasks mid-session degrades quality; use `/clear` when pivoting
 - **Recall relevant files by reading them** — don't rely on memory of previous edits in long sessions; re-read to confirm current state

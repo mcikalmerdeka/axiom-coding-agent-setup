@@ -23,9 +23,13 @@ This command downloads the following files from the [axiom-coding-agent-setup](h
 - `AGENTS.md` — Main agent instructions
 - `opencode.json` — OpenCode IDE configuration (MCP servers, plugins)
 - `.env.axiom` — Environment variables template for AXIOM credentials
-- `.agents/engineering.md` — Engineering principles & code standards
-- `.agents/stack.md` — Technology stack knowledge
-- `.agents/workflow.md` — Workflow guidelines & verification protocol
+- `.agents/ENGINEERING.md` — Engineering principles & code standards
+- `.agents/STACK.md` — Technology stack knowledge
+- `.agents/WORKFLOW.md` — Workflow guidelines & verification protocol
+- `.agents/SECURITY.md` — Security-first principles & attack vector checklist
+- `.agents/DEBUGGING.md` — Systematic debugging methodology & anti-patterns
+- `.agents/PERFORMANCE.md` — Performance awareness & optimization hierarchy
+- `.agents/CONTEXT-MANAGEMENT.md` — Context budget & session discipline
 - `.agents/templates/` — Project-type specific conventions
 - `.agents/skills/` — Domain-specific skills for specialized tasks
 
@@ -40,7 +44,7 @@ OpenCode IDE configuration including:
 - Plugin configuration
 - Environment variable references for secure credential management
 
-### .agents/engineering.md
+### .agents/ENGINEERING.md
 Core engineering principles including:
 - KISS, YAGNI, DRY principles
 - Decision framework for code reviews
@@ -48,7 +52,7 @@ Core engineering principles including:
 - Anti-patterns to avoid
 - AI-assisted development ground rules
 
-### .agents/stack.md
+### .agents/STACK.md
 Technology stack knowledge covering:
 - Languages (TypeScript, Python, Go, Rust, SQL)
 - Frontend (React, Next.js, Tailwind, shadcn/ui)
@@ -57,13 +61,44 @@ Technology stack knowledge covering:
 - AI/ML stack (LLM APIs, orchestration, observability)
 - Infrastructure & DevOps
 
-### .agents/workflow.md
+### .agents/WORKFLOW.md
 Workflow guidelines including:
 - Verification protocol (read files before claiming, test before declaring done)
 - Git discipline
 - Communication style
 - Code review stance
 - Context management for agentic sessions
+- Error recovery & anti-loop patterns
+
+### .agents/SECURITY.md
+Security-first principles including:
+- Input validation & secrets management checklist
+- Authentication & authorization patterns
+- Common attack vectors & prevention
+- When to escalate security decisions to humans
+
+### .agents/DEBUGGING.md
+Systematic debugging methodology including:
+- The 4-phase debugging protocol (Reproduction → Observation → Hypothesis → Fix)
+- Debugging techniques (binary search, git bisect, rubber duck)
+- Common bug categories & symptoms
+- Anti-patterns to avoid (shotgun debugging, print-driven development)
+
+### .agents/PERFORMANCE.md
+Performance awareness including:
+- The performance hierarchy (algorithm → database → I/O → memory → micro)
+- Caching strategies & when (not) to cache
+- Database query optimization
+- Frontend Core Web Vitals
+- Profiling & measurement tools
+
+### .agents/CONTEXT-MANAGEMENT.md
+Context management discipline including:
+- The 50% rule for context compaction
+- Session lifecycle & handoff documentation
+- Parallel execution & context isolation
+- Codebase navigation without context bloat
+- Context anti-patterns
 
 ### .agents/templates/
 Project-type specific convention files:
