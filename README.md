@@ -83,6 +83,7 @@ Domain-specific skills that can be loaded on-demand:
 - `gradio/` — Gradio UI framework guides
 - `mcp-builder/` — MCP server development guide
 - `n8n-patterns/` — n8n workflow automation patterns
+- `project-design/` — Project planning & architecture documentation
 - `ui-ux-pro-max/` — Advanced UI/UX design skill
 
 ## Development

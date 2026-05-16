@@ -41,6 +41,7 @@ const FILES_TO_DOWNLOAD = [
   '.agents/skills/gradio/SKILL.md',
   '.agents/skills/mcp-builder/SKILL.md',
   '.agents/skills/n8n-patterns/SKILL.md',
+  '.agents/skills/project-design/SKILL.md',
   '.agents/skills/ui-ux-pro-max/SKILL.md'
 ];
 

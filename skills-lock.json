@@ -41,6 +41,12 @@
       "skillPath": ".agents/skills/gradio/SKILL.md",
       "computedHash": "5078d8a4cc2b562731620f36f5f0d3ad054bd51f7a98baa547b04b893744823b"
     },
+    "skill-creator": {
+      "source": "anthropics/skills",
+      "sourceType": "github",
+      "skillPath": "skills/skill-creator/SKILL.md",
+      "computedHash": "7e3c9cd74e9e2b4828527a857170e86310f2dab5ea8030a9043df2c7e6c88857"
+    },
     "ui-ux-pro-max": {
       "source": "nextlevelbuilder/ui-ux-pro-max-skill",
       "sourceType": "github",
