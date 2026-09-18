@@ -11,12 +11,12 @@ How to deploy a project to a Hugging Face Space automatically whenever a GitHub 
 
 Core deployment strategies (in order of preference):
 
-| Strategy | How | Pros | Cons |
-|---|---|---|---|
-| **`git push space`** (recommended) | CI pushes git history directly to the Space's git remote | 1 commit per push; incremental; native deletions; no SDK | Pushes all git-tracked files; needs LFS tracked properly |
-| **Official `huggingface/hub-sync` action** | GitHub Action that mirrors files via the `hf` CLI | Zero-config; auto-excludes `.github/` + `.git/`; handles deletions | Mirror-based (not git-to-git); still commit-per-hook under the hood for large folders |
-| **`hf upload` / `upload_folder` script** | Python API bulk upload with `ignore_patterns` | Full control over ignore list | Easy to trip commit rate limits if implemented as delete-per-file + upload |
-| ~~Wipe-everything-then-upload~~ | `delete_file()` loop + `upload_folder` | (none — anti-pattern) | Burns ~1 commit **per deleted file**; a mid-run failure leaves the Space half-emptied |
+| Strategy                                   | How                                                      | Pros                                                               | Cons                                                                                  |
+| ------------------------------------------ | -------------------------------------------------------- | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------- |
+| **`git push space`** (recommended)         | CI pushes git history directly to the Space's git remote | 1 commit per push; incremental; native deletions; no SDK           | Pushes all git-tracked files; needs LFS tracked properly                              |
+| **Official `huggingface/hub-sync` action** | GitHub Action that mirrors files via the `hf` CLI        | Zero-config; auto-excludes `.github/` + `.git/`; handles deletions | Mirror-based (not git-to-git); still commit-per-hook under the hood for large folders |
+| **`hf upload` / `upload_folder` script**   | Python API bulk upload with `ignore_patterns`            | Full control over ignore list                                      | Easy to trip commit rate limits if implemented as delete-per-file + upload            |
+| ~~Wipe-everything-then-upload~~            | `delete_file()` loop + `upload_folder`                   | (none — anti-pattern)                                              | Burns ~1 commit **per deleted file**; a mid-run failure leaves the Space half-emptied |
 
 ---
 
@@ -32,7 +32,7 @@ Core deployment strategies (in order of preference):
 
 ## Prerequisites (What a Working Space Needs)
 
-1. **`README.md` with YAML front matter at the very top** — this *is* the Space's build config. Without it HF shows:
+1. **`README.md` with YAML front matter at the very top** — this _is_ the Space's build config. Without it HF shows:
 
    ```
    configuration error
@@ -73,7 +73,7 @@ name: Deploy to Hugging Face Space
 on:
   push:
     branches: [main]
-  workflow_dispatch:      # manual re-run after rate-limit recovery
+  workflow_dispatch: # manual re-run after rate-limit recovery
 
 jobs:
   deploy-to-hf:
@@ -82,8 +82,8 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0   # full history — HF's pre-receive hook scans every pushed commit
-          lfs: true        # required whenever any tracked file matches .gitattributes LFS patterns
+          fetch-depth: 0 # full history — HF's pre-receive hook scans every pushed commit
+          lfs: true # required whenever any tracked file matches .gitattributes LFS patterns
 
       - name: Push to HF Space
         env:
@@ -149,6 +149,7 @@ Key facts:
 - Three deploys in one hour ≈ far over budget → mid-upload 429 → Space left empty → rebuild error.
 
 Recovery from a 429:
+
 1. Wait for the window to reset (the error message states the cooldown, usually ~1 hour).
 2. Re-run the workflow via `workflow_dispatch` (Actions tab → Run workflow) — no new commit needed if `main` is already correct.
 3. Local runs (running the same script locally with the HF token) hit the **same account-level** quota.
@@ -212,7 +213,7 @@ Check: file tree is complete (`tree/main` shows expected set), README front matt
 ## Gotchas
 
 - **Rate limit is per account/token across everything**, so a local test run and a CI run share the same budget.
-- The Hub's pre-receive hook scans **every commit in the push**, not just the tip — a binary blob that exists anywhere in history can break pushes around it. If that bites, push a single **orphan commit** of the current tree instead of raw history.
+- The Hub's pre-receive hook scans **every commit in the push**, not just the tip — and since the move to Xet storage it **rejects raw binary files** not stored via Xet/LFS anywhere in that history, even if the current tree is clean (symptom: `remote: Your push was rejected because it contains binary files` + `Offending files:` list). If that bites, push a single **orphan commit** of the current tree minus raw binaries instead of raw history. Historic binaries committed before an LFS rule was added to `.gitattributes` stay raw in ancestors — adding the LFS rule only changes future commits.
 - **LFS pointer vs file content**: if the runner checks out with `lfs: true`, files in the working copy are real content; pushing to the Space via `git push` uploads the real LFS objects over the remote's LFS endpoint. Without LFS checkout, the Space receives pointer files → 404 on the asset.
 - `upload_folder` failures mid-run are **not transactional** — partial state persists (this is what emptied a real Space down to one directory).
 - Deleting LFS files only frees guardrail-level storage after history is rewritten (`super_squash_history`), but for Spaces the OPPOSITE pattern is fine: force-push resets history, so old Storage-deleted files aren't a top concern.

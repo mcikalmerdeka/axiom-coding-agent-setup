@@ -111,16 +111,25 @@ Domain-specific skills that can be loaded on-demand:
 - `ai-integration/` — LLM/AI integration patterns
 - `deployment-patterns/` — Deployment and infrastructure guide
 - `developing-with-streamlit/` — Streamlit app development guides
+- `domain-modeling/` — Domain model, glossary & ADR documentation
 - `fastapi/` — FastAPI best practices and patterns
 - `fastapi-templates/` — FastAPI project templates
 - `frontend-design/` — Frontend UI/UX design patterns
 - `git-commit/` — Conventional commit message generation
 - `gradio/` — Gradio UI framework guides
+- `grill-with-docs/` — Design interview that sharpens plans into ADRs & glossary
+- `grilling/` — Stress-test plans with relentless questioning
 - `huggingface-deployment/` — Deploy apps to Hugging Face Spaces
+- `implement/` — Implement work from specs or tickets
 - `mcp-builder/` — MCP server development guide
-- `n8n-patterns/` — n8n workflow automation patterns
 - `project-design/` — Project planning & architecture documentation
+- `setup-matt-pocock-skills/` — Configure a repo for the engineering skills workflow
+- `tdd/` — Test-driven development workflow
+- `to-spec/` — Turn a conversation into a published spec
+- `to-tickets/` — Break plans/specs into tracer-bullet tickets
+- `triage/` — Issue & PR triage workflow
 - `ui-ux-pro-max/` — Advanced UI/UX design skill
+- `wayfinder/` — Plan large work as a map of decision tickets
 
 ## Development
 
