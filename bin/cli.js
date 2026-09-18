@@ -43,6 +43,7 @@ const FILES_TO_DOWNLOAD = [
   '.agents/skills/frontend-design/SKILL.md',
   '.agents/skills/git-commit/SKILL.md',
   '.agents/skills/gradio/SKILL.md',
+  '.agents/skills/huggingface-deployment/SKILL.md',
   '.agents/skills/mcp-builder/SKILL.md',
   '.agents/skills/project-design/SKILL.md',
   '.agents/skills/ui-ux-pro-max/SKILL.md'

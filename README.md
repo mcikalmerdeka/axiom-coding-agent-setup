@@ -116,6 +116,7 @@ Domain-specific skills that can be loaded on-demand:
 - `frontend-design/` — Frontend UI/UX design patterns
 - `git-commit/` — Conventional commit message generation
 - `gradio/` — Gradio UI framework guides
+- `huggingface-deployment/` — Deploy apps to Hugging Face Spaces
 - `mcp-builder/` — MCP server development guide
 - `n8n-patterns/` — n8n workflow automation patterns
 - `project-design/` — Project planning & architecture documentation
