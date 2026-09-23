@@ -16,6 +16,19 @@ Or use the shorter alias:
 npx axiom-setup
 ```
 
+## Interactive Setup
+
+During installation you will be asked:
+
+> **Do you want to install Mattpocock skill collection?**
+
+- **Yes** — installs all skills, including the Mattpocock skill collection
+  (`domain-modeling`, `grill-with-docs`, `grilling`, `implement`,
+  `setup-matt-pocock-skills`, `tdd`, `to-spec`, `to-tickets`, `triage`, `wayfinder`).
+- **No** — installs everything except the Mattpocock skill collection skills.
+
+Use the arrow keys (or `Y`/`N`) to select and press Enter to confirm.
+
 ## What It Does
 
 This command downloads the following files from the [axiom-coding-agent-setup](https://github.com/mcikalmerdeka/axiom-coding-agent-setup) repository into your current project directory:

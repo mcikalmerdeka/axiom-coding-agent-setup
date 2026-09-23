@@ -10,10 +10,31 @@
 const https = require('https');
 const fs = require('fs');
 const path = require('path');
+const readline = require('readline');
 
 const REPO_OWNER = 'mcikalmerdeka';
 const REPO_NAME = 'axiom-coding-agent-setup';
 const BRANCH = 'main';
+
+// Skills from the mattpocock/skills collection.
+// These are optionally excluded when the user declines the
+// "Do you want to install Mattpocock skill collection?" prompt.
+const MATTCOCK_SKILL_DIRS = [
+  '.agents/skills/domain-modeling',
+  '.agents/skills/grill-with-docs',
+  '.agents/skills/grilling',
+  '.agents/skills/implement',
+  '.agents/skills/setup-matt-pocock-skills',
+  '.agents/skills/tdd',
+  '.agents/skills/to-spec',
+  '.agents/skills/to-tickets',
+  '.agents/skills/triage',
+  '.agents/skills/wayfinder'
+];
+
+function isMattPocockSkillFile(filePath) {
+  return MATTCOCK_SKILL_DIRS.some((dir) => filePath.startsWith(dir + '/'));
+}
 
 const FILES_TO_DOWNLOAD = [
   // Main instructions
@@ -86,6 +107,103 @@ function log(message, color = 'reset') {
   console.log(`${colors[color]}${message}${colors.reset}`);
 }
 
+/**
+ * Interactive Yes/No prompt.
+ *
+ * On an interactive terminal the options are rendered as a selectable list
+ * (up/down arrows to highlight, Enter to confirm). The Y/N keys also work
+ * as shortcuts. When stdin is not a TTY (piped input, CI, etc.) it falls
+ * back to a plain text prompt where typing "y"/"yes" means Yes and anything
+ * else (including just pressing Enter) uses the default answer.
+ *
+ * @param {string} questionText - The question to display.
+ * @param {boolean} defaultYes  - Preselected option (default: No).
+ * @returns {Promise<boolean>} true when the user selected Yes.
+ */
+function promptYesNo(questionText, defaultYes = false) {
+  return new Promise((resolve) => {
+    const options = ['Yes', 'No'];
+    let selected = defaultYes ? 0 : 1;
+
+    const render = (final = false) => {
+      const lines = [`\r\x1b[K${questionText}`];
+      options.forEach((opt, i) => {
+        lines.push(
+          i === selected
+            ? `\r\x1b[K  ${colors.cyan}${colors.bold}❯ ${opt}${colors.reset}`
+            : `\r\x1b[K    ${opt}`
+        );
+      });
+      if (final) {
+        process.stdout.write(lines.join('\n') + '\n');
+      } else {
+        process.stdout.write('\x1b[?25l' + lines.join('\n') + `\x1b[${options.length}A`);
+      }
+    };
+
+    // Fallback for non-interactive terminals (piped input, CI runners, etc.)
+    if (!process.stdin.isTTY || typeof process.stdin.setRawMode !== 'function') {
+      const defaultHint = defaultYes ? 'Y/n' : 'y/N';
+      const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+      rl.question(`${questionText} (${defaultHint}): `, (answer) => {
+        rl.close();
+        const normalized = (answer || '').trim().toLowerCase();
+        if (normalized === 'n' || normalized === 'no') resolve(false);
+        else if (normalized === 'y' || normalized === 'yes') resolve(true);
+        else resolve(defaultYes);
+      });
+      return;
+    }
+
+    const stdin = process.stdin;
+    readline.emitKeypressEvents(stdin);
+
+    const onKey = (str, key) => {
+      if (key) {
+        if (key.name === 'up' || (key.name === 'k' && !key.ctrl)) {
+          selected = 0;
+          render();
+          return;
+        }
+        if (key.name === 'down' || (key.name === 'j' && !key.ctrl)) {
+          selected = 1;
+          render();
+          return;
+        }
+        if (key.name === 'return' || key.name === 'enter') {
+          stdin.setRawMode(false);
+          stdin.removeListener('keypress', onKey);
+          stdin.pause();
+          process.stdout.write('\x1b[?25h'); // restore cursor
+          render(true);
+          resolve(selected === 0);
+          return;
+        }
+        if (key.ctrl && key.name === 'c') {
+          stdin.setRawMode(false);
+          stdin.removeListener('keypress', onKey);
+          stdin.pause();
+          process.stdout.write('\x1b[?25h\n');
+          process.exit(1);
+        }
+      }
+      const letter = (str || '').toLowerCase();
+      if (letter === 'y') {
+        selected = 0;
+        render();
+      } else if (letter === 'n') {
+        selected = 1;
+        render();
+      }
+    };
+
+    stdin.setRawMode(true);
+    stdin.resume();
+    stdin.on('keypress', onKey);
+    render();
+  });
+}
+
 function downloadFile(filePath) {
   return new Promise((resolve, reject) => {
     const url = `${GITHUB_RAW_URL}/${filePath}`;
@@ -139,10 +257,23 @@ async function main() {
 
   log(`Target directory: ${process.cwd()}\n`, 'yellow');
 
+  const includeMattPocockSkills = await promptYesNo(
+    'Do you want to install Mattpocock skill collection?'
+  );
+  log('');
+
+  const filesToDownload = includeMattPocockSkills
+    ? FILES_TO_DOWNLOAD
+    : FILES_TO_DOWNLOAD.filter((file) => !isMattPocockSkillFile(file));
+
+  if (!includeMattPocockSkills) {
+    log('Skipping Mattpocock skill collection skills.\n', 'yellow');
+  }
+
   let successCount = 0;
   let failCount = 0;
 
-  for (const file of FILES_TO_DOWNLOAD) {
+  for (const file of filesToDownload) {
     try {
       process.stdout.write(`Downloading ${file}... `);
       await downloadFile(file);
