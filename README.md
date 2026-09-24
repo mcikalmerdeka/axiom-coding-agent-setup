@@ -23,8 +23,8 @@ During installation you will be asked:
 > **Do you want to install Mattpocock skill collection?**
 
 - **Yes** — installs all skills, including the Mattpocock skill collection
-  (`domain-modeling`, `grill-with-docs`, `grilling`, `implement`,
-  `setup-matt-pocock-skills`, `tdd`, `to-spec`, `to-tickets`, `triage`, `wayfinder`).
+  (`domain-modeling`, `grill-with-docs`, `grilling`,
+  `to-spec`, `to-tickets`, `triage`, `wayfinder`).
 - **No** — installs everything except the Mattpocock skill collection skills.
 
 Use the arrow keys (or `Y`/`N`) to select and press Enter to confirm.
@@ -36,13 +36,10 @@ This command downloads the following files from the [axiom-coding-agent-setup](h
 - `AGENTS.md` — Main agent instructions
 - `opencode.json` — OpenCode IDE configuration (MCP servers, plugins)
 - `.env.axiom` — Environment variables template for AXIOM credentials
-- `.agents/ENGINEERING.md` — Engineering principles & code standards
-- `.agents/STACK.md` — Technology stack knowledge
-- `.agents/WORKFLOW.md` — Workflow guidelines & verification protocol
-- `.agents/SECURITY.md` — Security-first principles & attack vector checklist
-- `.agents/DEBUGGING.md` — Systematic debugging methodology & anti-patterns
-- `.agents/PERFORMANCE.md` — Performance awareness & optimization hierarchy
-- `.agents/CONTEXT-MANAGEMENT.md` — Context budget & session discipline
+- `.agents/STACK.md` — Technology stack knowledge (loaded on demand)
+- `.agents/SECURITY.md` — Security-first principles & attack vector checklist (loaded on demand)
+- `.agents/DEBUGGING.md` — Systematic debugging methodology & anti-patterns (loaded on demand)
+- `.agents/PERFORMANCE.md` — Performance awareness & optimization hierarchy (loaded on demand)
 - `.agents/templates/` — Project-type specific conventions
 - `.agents/skills/` — Domain-specific skills for specialized tasks
 
@@ -57,61 +54,19 @@ OpenCode IDE configuration including:
 - Plugin configuration
 - Environment variable references for secure credential management
 
-### .agents/ENGINEERING.md
-Core engineering principles including:
-- KISS, YAGNI, DRY principles
-- Decision framework for code reviews
-- Architecture guidelines
-- Anti-patterns to avoid
-- AI-assisted development ground rules
-
 ### .agents/STACK.md
-Technology stack knowledge covering:
-- Languages (TypeScript, Python, Go, Rust, SQL)
-- Frontend (React, Next.js, Tailwind, shadcn/ui)
-- Backend (Hono, FastAPI, tRPC, etc.)
-- Databases (PostgreSQL, Redis, Vector DBs)
-- AI/ML stack (LLM APIs, orchestration, observability)
-- Infrastructure & DevOps
-
-### .agents/WORKFLOW.md
-Workflow guidelines including:
-- Verification protocol (read files before claiming, test before declaring done)
-- Git discipline
-- Communication style
-- Code review stance
-- Context management for agentic sessions
-- Error recovery & anti-loop patterns
+Reference catalog loaded on demand: languages, frameworks, databases, AI/ML stack, infra & DevOps recommendations.
 
 ### .agents/SECURITY.md
-Security-first principles including:
-- Input validation & secrets management checklist
-- Authentication & authorization patterns
-- Common attack vectors & prevention
-- When to escalate security decisions to humans
+Loaded on demand: checklist, common attack vectors, defensive patterns, escalation rules.
 
 ### .agents/DEBUGGING.md
-Systematic debugging methodology including:
-- The 4-phase debugging protocol (Reproduction → Observation → Hypothesis → Fix)
-- Debugging techniques (binary search, git bisect, rubber duck)
-- Common bug categories & symptoms
-- Anti-patterns to avoid (shotgun debugging, print-driven development)
+Loaded on demand: the 4-phase debugging protocol, techniques (git bisect, binary search), anti-patterns.
 
 ### .agents/PERFORMANCE.md
-Performance awareness including:
-- The performance hierarchy (algorithm → database → I/O → memory → micro)
-- Caching strategies & when (not) to cache
-- Database query optimization
-- Frontend Core Web Vitals
-- Profiling & measurement tools
+Loaded on demand: performance hierarchy, caching strategy, database & frontend tuning, profiling tools.
 
-### .agents/CONTEXT-MANAGEMENT.md
-Context management discipline including:
-- The 50% rule for context compaction
-- Session lifecycle & handoff documentation
-- Parallel execution & context isolation
-- Codebase navigation without context bloat
-- Context anti-patterns
+*(Engineering principles, workflow, git discipline, and communication guidelines are merged directly into AGENTS.md.)*
 
 ### .agents/templates/
 Project-type specific convention files:
@@ -120,7 +75,6 @@ Project-type specific convention files:
 
 ### .agents/skills/
 Domain-specific skills that can be loaded on-demand:
-- `agent-browser/` — Web browser automation skill
 - `ai-integration/` — LLM/AI integration patterns
 - `deployment-patterns/` — Deployment and infrastructure guide
 - `developing-with-streamlit/` — Streamlit app development guides
@@ -128,20 +82,16 @@ Domain-specific skills that can be loaded on-demand:
 - `fastapi/` — FastAPI best practices and patterns
 - `fastapi-templates/` — FastAPI project templates
 - `frontend-design/` — Frontend UI/UX design patterns
-- `git-commit/` — Conventional commit message generation
 - `gradio/` — Gradio UI framework guides
 - `grill-with-docs/` — Design interview that sharpens plans into ADRs & glossary
 - `grilling/` — Stress-test plans with relentless questioning
 - `huggingface-deployment/` — Deploy apps to Hugging Face Spaces
-- `implement/` — Implement work from specs or tickets
 - `mcp-builder/` — MCP server development guide
 - `project-design/` — Project planning & architecture documentation
-- `setup-matt-pocock-skills/` — Configure a repo for the engineering skills workflow
-- `tdd/` — Test-driven development workflow
+- `prompt-creation/` — Generate implementation prompts for AI handoff
 - `to-spec/` — Turn a conversation into a published spec
 - `to-tickets/` — Break plans/specs into tracer-bullet tickets
 - `triage/` — Issue & PR triage workflow
-- `ui-ux-pro-max/` — Advanced UI/UX design skill
 - `wayfinder/` — Plan large work as a map of decision tickets
 
 ## Development

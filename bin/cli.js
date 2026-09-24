@@ -23,9 +23,6 @@ const MATTCOCK_SKILL_DIRS = [
   '.agents/skills/domain-modeling',
   '.agents/skills/grill-with-docs',
   '.agents/skills/grilling',
-  '.agents/skills/implement',
-  '.agents/skills/setup-matt-pocock-skills',
-  '.agents/skills/tdd',
   '.agents/skills/to-spec',
   '.agents/skills/to-tickets',
   '.agents/skills/triage',
@@ -44,18 +41,14 @@ const FILES_TO_DOWNLOAD = [
   // Environment variables template
   '.env.axiom',
   // Core agent documents
-  '.agents/ENGINEERING.md',
-  '.agents/STACK.md',
-  '.agents/WORKFLOW.md',
-  '.agents/SECURITY.md',
   '.agents/DEBUGGING.md',
   '.agents/PERFORMANCE.md',
-  '.agents/CONTEXT-MANAGEMENT.md',
+  '.agents/SECURITY.md',
+  '.agents/STACK.md',
   // Templates (project-type conventions)
   '.agents/templates/ai-engineering-python.md',
   '.agents/templates/fullstack-ai-nextjs.md',
   // Skills (domain-specific guides)
-  '.agents/skills/agent-browser/SKILL.md',
   '.agents/skills/ai-integration/SKILL.md',
   '.agents/skills/deployment-patterns/SKILL.md',
   '.agents/skills/developing-with-streamlit/SKILL.md',
@@ -65,30 +58,19 @@ const FILES_TO_DOWNLOAD = [
   '.agents/skills/fastapi/SKILL.md',
   '.agents/skills/fastapi-templates/SKILL.md',
   '.agents/skills/frontend-design/SKILL.md',
-  '.agents/skills/git-commit/SKILL.md',
   '.agents/skills/gradio/SKILL.md',
   '.agents/skills/grill-with-docs/SKILL.md',
   '.agents/skills/grilling/SKILL.md',
   '.agents/skills/huggingface-deployment/SKILL.md',
-  '.agents/skills/implement/SKILL.md',
   '.agents/skills/mcp-builder/SKILL.md',
   '.agents/skills/project-design/SKILL.md',
-  '.agents/skills/setup-matt-pocock-skills/SKILL.md',
-  '.agents/skills/setup-matt-pocock-skills/domain.md',
-  '.agents/skills/setup-matt-pocock-skills/issue-tracker-github.md',
-  '.agents/skills/setup-matt-pocock-skills/issue-tracker-gitlab.md',
-  '.agents/skills/setup-matt-pocock-skills/issue-tracker-local.md',
-  '.agents/skills/setup-matt-pocock-skills/triage-labels.md',
-  '.agents/skills/tdd/SKILL.md',
-  '.agents/skills/tdd/mocking.md',
-  '.agents/skills/tdd/tests.md',
+  '.agents/skills/prompt-creation/SKILL.md',
   '.agents/skills/to-spec/SKILL.md',
   '.agents/skills/to-tickets/SKILL.md',
   '.agents/skills/triage/SKILL.md',
   '.agents/skills/triage/AGENT-BRIEF.md',
   '.agents/skills/triage/OUT-OF-SCOPE.md',
-  '.agents/skills/wayfinder/SKILL.md',
-  '.agents/skills/ui-ux-pro-max/SKILL.md'
+  '.agents/skills/wayfinder/SKILL.md'
 ];
 
 const GITHUB_RAW_URL = `https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/${BRANCH}`;
@@ -294,13 +276,10 @@ async function main() {
     log('  - AGENTS.md                          → Main agent instructions', 'cyan');
     log('  - opencode.json                      → OpenCode IDE configuration', 'cyan');
     log('  - .env.axiom                         → Environment variables template', 'cyan');
-    log('  - .agents/ENGINEERING.md             → Engineering principles', 'cyan');
-    log('  - .agents/STACK.md                   → Tech stack knowledge', 'cyan');
-    log('  - .agents/WORKFLOW.md                → Workflow guidelines', 'cyan');
-    log('  - .agents/SECURITY.md                → Security principles & checklist', 'cyan');
-    log('  - .agents/DEBUGGING.md               → Systematic debugging methodology', 'cyan');
-    log('  - .agents/PERFORMANCE.md             → Performance awareness & optimization', 'cyan');
-    log('  - .agents/CONTEXT-MANAGEMENT.md      → Context budget & session discipline', 'cyan');
+    log('  - .agents/STACK.md                   → Tech stack reference (on demand)', 'cyan');
+    log('  - .agents/SECURITY.md                → Security principles & checklist (on demand)', 'cyan');
+    log('  - .agents/DEBUGGING.md               → Systematic debugging methodology (on demand)', 'cyan');
+    log('  - .agents/PERFORMANCE.md             → Performance awareness & optimization (on demand)', 'cyan');
     log('  - .agents/templates/                 → Project-type conventions', 'cyan');
     log('  - .agents/skills/                    → Domain-specific skills\n', 'cyan');
   }
