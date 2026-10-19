@@ -49,7 +49,7 @@ This command downloads the following files from the [axiom-coding-agent-setup](h
 The main instruction file that coding agents (Claude, Cursor, OpenCode, etc.) read first when working on your project.
 
 ### opencode.json
-OpenCode IDE configuration including:
+OpenCode V2 configuration (native `mcp.servers` format) including:
 - MCP server definitions (remote tools like n8n, Neon, Gradio, etc.)
 - Plugin configuration
 - Environment variable references for secure credential management
