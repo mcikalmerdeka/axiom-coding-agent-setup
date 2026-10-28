@@ -76,6 +76,7 @@ Project-type specific convention files:
 ### .agents/skills/
 Domain-specific skills that can be loaded on-demand:
 - `ai-integration/` — LLM/AI integration patterns
+- `building-metabase-dashboards/` — Metabase dashboards from SQL with KPI cards, filters, and QA
 - `deployment-patterns/` — Deployment and infrastructure guide
 - `developing-with-streamlit/` — Streamlit app development guides
 - `domain-modeling/` — Domain model, glossary & ADR documentation

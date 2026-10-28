@@ -50,6 +50,10 @@ const FILES_TO_DOWNLOAD = [
   '.agents/templates/fullstack-ai-nextjs.md',
   // Skills (generated recursively from .agents/skills)
   '.agents/skills/ai-integration/SKILL.md',
+  '.agents/skills/building-metabase-dashboards/SKILL.md',
+  '.agents/skills/building-metabase-dashboards/references/Metabase_Parameter_Types_Reference.md',
+  '.agents/skills/building-metabase-dashboards/references/dashboard-build-guide.md',
+  '.agents/skills/building-metabase-dashboards/references/dashboard-sql-with-filters.md',
   '.agents/skills/deployment-patterns/SKILL.md',
   '.agents/skills/developing-with-streamlit/SKILL.md',
   '.agents/skills/developing-with-streamlit/skills/building-streamlit-chat-ui/SKILL.md',
