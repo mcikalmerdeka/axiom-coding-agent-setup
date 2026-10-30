@@ -1,0 +1,11 @@
+category-encoders
+ipykernel
+matplotlib
+numpy
+pandas
+scikit-learn
+scipy
+seaborn
+statsmodels
+tqdm
+xgboost

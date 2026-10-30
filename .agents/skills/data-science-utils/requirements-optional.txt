@@ -1,0 +1,12 @@
+# Text preprocessing and text visualization
+beautifulsoup4
+contractions
+nltk
+Pillow
+textblob
+wordcloud
+
+# Language detection and translation
+deep-translator
+langid
+tenacity

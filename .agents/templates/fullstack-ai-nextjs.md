@@ -142,6 +142,8 @@ project-root/
 
 ### Vercel AI SDK Pattern
 
+Applies to AI SDK 5+. If the project pins v4, use that version's signatures instead.
+
 ```tsx
 // src/lib/ai/config.ts
 import { createOpenAI } from '@ai-sdk/openai';
@@ -158,22 +160,22 @@ export const anthropic = createAnthropic({
 
 ```tsx
 // src/app/api/chat/route.ts
-import { streamText } from 'ai';
+import { convertToModelMessages, streamText, type UIMessage } from 'ai';
 import { openai } from '@/lib/ai/config';
 
 export async function POST(req: Request) {
-  const { messages } = await req.json();
+  const { messages }: { messages: UIMessage[] } = await req.json();
 
   const result = streamText({
-    model: openai('gpt-4'),
-    messages,
-    system: "You are a helpful AI assistant.",
+    model: openai('gpt-5'),
+    messages: convertToModelMessages(messages),
+    system: 'You are a helpful AI assistant.',
     tools: {
       // Define tools here
     },
   });
 
-  return result.toDataStreamResponse();
+  return result.toUIMessageStreamResponse();
 }
 ```
 
@@ -181,29 +183,44 @@ export async function POST(req: Request) {
 // src/components/chat/ChatInput.tsx
 "use client"
 
-import { useChat } from 'ai/react';
+import { useState } from 'react';
+import { useChat } from '@ai-sdk/react';
+import { DefaultChatTransport } from 'ai';
 
 export function ChatInput() {
-  const { messages, input, handleInputChange, handleSubmit, isLoading } = useChat();
+  const [input, setInput] = useState('');
+  const { messages, sendMessage, status } = useChat({
+    transport: new DefaultChatTransport({ api: '/api/chat' }),
+  });
+  const isBusy = status === 'submitted' || status === 'streaming';
 
   return (
     <div className="flex flex-col h-full">
       <div className="flex-1 overflow-auto">
-        {messages.map(m => (
+        {messages.map((m) => (
           <div key={m.id} className={m.role === 'user' ? 'user' : 'assistant'}>
-            {m.content}
+            {m.parts.map((part, i) =>
+              part.type === 'text' ? <span key={i}>{part.text}</span> : null
+            )}
           </div>
         ))}
       </div>
-      
-      <form onSubmit={handleSubmit}>
+
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (!input.trim()) return;
+          sendMessage({ text: input });
+          setInput('');
+        }}
+      >
         <input
           value={input}
-          onChange={handleInputChange}
+          onChange={(e) => setInput(e.target.value)}
           placeholder="Type a message..."
-          disabled={isLoading}
+          disabled={isBusy}
         />
-        <button type="submit" disabled={isLoading}>
+        <button type="submit" disabled={isBusy}>
           Send
         </button>
       </form>
@@ -301,7 +318,7 @@ interface ChatState {
 export const useChatStore = create<ChatState>()(
   persist(
     (set) => ({
-      selectedModel: "gpt-4",
+      selectedModel: "gpt-5",
       temperature: 0.7,
       setModel: (model) => set({ selectedModel: model }),
       setTemperature: (temp) => set({ temperature: temp }),
@@ -404,7 +421,7 @@ import { prisma } from "@/lib/db/prisma";
 
 export const searchDocuments = tool({
   description: "Search user's documents for relevant information",
-  parameters: z.object({
+  inputSchema: z.object({
     query: z.string().describe("The search query"),
   }),
   execute: async ({ query }) => {
@@ -428,7 +445,7 @@ export const searchDocuments = tool({
 
 export const saveToConversation = tool({
   description: "Save important information to the conversation",
-  parameters: z.object({
+  inputSchema: z.object({
     summary: z.string().describe("Summary of the information"),
   }),
   execute: async ({ summary }) => {

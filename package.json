@@ -1,6 +1,6 @@
 {
   "name": "axiom-coding-agent-setup",
-  "version": "1.8.0",
+  "version": "2.0.0",
   "description": "CLI tool to download AXIOM coding agent setup files into your project",
   "main": "bin/cli.js",
   "files": [
@@ -17,7 +17,8 @@
     "axiom-setup": "bin/cli.js"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "check": "node scripts/check-manifest.js",
+    "prepublishOnly": "node --check bin/cli.js && node scripts/check-manifest.js"
   },
   "keywords": [
     "axiom",

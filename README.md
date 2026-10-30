@@ -75,9 +75,8 @@ Project-type specific convention files:
 
 ### .agents/skills/
 Domain-specific skills that can be loaded on-demand:
-- `ai-integration/` — LLM/AI integration patterns
 - `building-metabase-dashboards/` — Metabase dashboards from SQL with KPI cards, filters, and QA
-- `deployment-patterns/` — Deployment and infrastructure guide
+- `data-science-utils/` — Bundled pandas/scikit-learn utilities, EDA reports, eval & tuning helpers
 - `developing-with-streamlit/` — Streamlit app development guides
 - `domain-modeling/` — Domain model, glossary & ADR documentation
 - `fastapi/` — FastAPI best practices and patterns
@@ -114,6 +113,10 @@ node bin/cli.js
    ```bash
    npm publish
    ```
+
+`npm publish` runs `prepublishOnly`, which syntax-checks `bin/cli.js` and verifies
+that `FILES_TO_DOWNLOAD` matches the files on disk and the README skill list.
+Run it on its own with `npm run check`.
 
 ## License
 
