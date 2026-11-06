@@ -1,27 +1,33 @@
 ---
 name: building-metabase-dashboards
-description: Use when building or extending a Metabase dashboard from SQL tables, especially when adding KPI/chart cards, native SQL, dashboard filters, Field Filter variables, or validating filter behavior and dashboard QA.
-compatibility: Requires a running Metabase instance connected to PostgreSQL. Docker, PostgreSQL, and ETL setup are out of scope.
+description: Use when building, bulk-provisioning, filtering, versioning, or backing up the Airbnb Berlin Metabase dashboards, including collections, native SQL cards, Field Filters, dashboard filters, API seeding, Git-friendly JSON export, and application-database backup/restore.
+compatibility: Requires a running Metabase 0.64+ connected to PostgreSQL. Provisioning and export need an admin API key. Docker/PostgreSQL installation and ETL are out of scope; application-database backup is in scope.
 metadata:
-  author: gym-membership-metabase
-  version: "1.0"
+  author: axiom
+  version: "2.0"
 ---
 
 # Building Metabase Dashboards
 
 ## Overview
 
-Build a Metabase dashboard in this order:
+Build and persist Metabase work in three phases:
 
-**analysis-ready table -> model -> saved questions -> dashboard -> filters -> format -> QA**
+1. **Design** — an analysis-ready table/model with a known grain and filter columns.
+2. **Provision** — collections, saved questions, dashboards, and filters.
+3. **Persist** — Git-friendly JSON export and an exact application-database backup.
 
-The bundled references use the Gym Membership dataset as a complete worked
-example. For a new project, substitute the real table and column names, but keep
-the same structure: one wide/analysis-ready table, a model, saved questions,
-one dashboard, dashboard filters mapped to every intended card, and a QA pass.
+Use the manual UI for one dashboard or exploratory work. Use the API seeder for
+multi-dashboard builds, reruns, and repeatable delivery. Export after every
+definition change; back up before upgrades, resets, and bulk writes.
 
-Assume Metabase and the database are already running. **Do not include Docker,
-PostgreSQL installation, or ETL setup in the plan.**
+The bundled references use the Airbnb Berlin project as the single worked
+example: 5 dashboards, 66 cards, the `analytics` schema, and the full filter
+map. The API and persistence references use the same project.
+
+Assume Metabase and the database are running. **Do not include Docker,
+PostgreSQL installation, or ETL setup in the plan.** Application-database backup
+is in scope; installing the database is not.
 
 UI labels in this skill are from Metabase 0.64.x. Newer versions may rename
 controls, but the concepts (Field Filter, variable mapping, dashboard filter
@@ -32,24 +38,45 @@ type) are the same.
 Use this skill when:
 
 - The user wants a new Metabase dashboard, KPI row, chart set, or detail table.
+- The user needs many collections, questions, or dashboards created repeatedly.
 - An existing Metabase dashboard needs filters that work across multiple cards.
 - A native SQL card shows `A text variable in this card can only be connected...`.
 - A native SQL card shows `Cannot run the query: missing required parameters`.
 - A native SQL card shows `argument of AND must be type boolean`.
-- The user needs a repeatable layout, visualization choices, filter mapping, or
-  QA checklist for an operational dashboard.
+- The user needs to save, version, export, or back up Metabase content.
+- The user needs an exact restore path for the Metabase application database.
 
 Do not use this skill for Docker/PostgreSQL setup, data cleaning, ETL, or
-database schema design.
+database schema design. Application-database backup/restore is in scope.
 
 ## Preconditions
 
 - Metabase is running and reachable.
 - The database connection already exists in Metabase.
 - An analysis-ready table or model exists.
-- You know the table grain (for example, one row per member or per order).
+- You know the table grain (for example, one row per listing, host, or review).
 - You know which columns should become filters and whether they are text,
   category, boolean, number, or date fields.
+- For the API path: an API key in the Administrators group, and a project
+  `.env` with `METABASE_URL=http://127.0.0.1:3000` and `METABASE_API_KEY`.
+  Never commit `.env`.
+- For an exact backup: the Metabase application database runs on PostgreSQL or
+  MySQL, not embedded H2.
+- Ask owners to save in-progress editor drafts; the API cannot see unsaved work.
+
+## Choose the path
+
+| Situation | Path | Where |
+| --- | --- | --- |
+| One dashboard, few cards, exploratory | Manual UI + query builder | This file |
+| Many collections/dashboards, repeatable build | API seeder + definitions JSON | [API provisioning](references/metabase-api-provisioning.md) |
+| Complex SQL | Native SQL + Field Filters | This file + [SQL reference](references/dashboard-sql-with-filters.md) |
+| Save definitions to Git | JSON export | [Export and backup](references/metabase-export-and-backup.md) |
+| Exact restore of users/settings/dashboards | Application DB dump | [Export and backup](references/metabase-export-and-backup.md) |
+| Native YAML import/export | Pro/Enterprise serialization | [Export and backup](references/metabase-export-and-backup.md) |
+
+Do not API-seed a single exploratory card. Do not hand-build 66 cards in the UI
+when the inventory is already documented.
 
 ## First decision: query builder or native SQL
 
@@ -59,124 +86,186 @@ database schema design.
 | `CROSS JOIN LATERAL`, CTEs, window functions, complex SQL | Native SQL | Add one **Field Filter** variable per filter and map to the variable |
 | Mixed dashboard | Query builder for simple cards; native SQL only where needed | Keep filter names and types consistent |
 
-Prefer the query builder for simple member-level cards. Native SQL is not a
+Prefer the query builder for simple entity-level cards. Native SQL is not a
 shortcut for filters: it makes filters harder because every card needs its own
-variables.
+variables. The bundled API seeder creates native SQL cards only; create
+query-builder cards in the UI or extend the seeder with MBQL.
 
-If the project uses a star schema, either build a wide table/model for the
-filterable cards or join the bridge tables to the main table. See
-[When to use the star schema instead](references/dashboard-build-guide.md#when-to-use-the-star-schema-instead).
+The Airbnb project uses a star schema and pre-aggregated marts. Prefer the
+listing/host/review models for filterable cards; use the marts for
+pre-aggregated benchmarks. The full source map is in
+[Dashboard Build Guide](references/dashboard-build-guide.md).
 
 ## Build sequence
 
 1. **Inspect the schema.** Confirm the grain, key columns, filter columns, and
    expected unfiltered totals.
-2. **Create a model.** Point it at the analysis-ready wide table. Name it
-   clearly and add a short description.
-3. **Plan the card inventory.** Start with the KPI row, then demographics,
-   usage, engagement/popularity, and the detail table.
-4. **Build and save questions** in the collection. Use consistent names:
-   `KPI - ...`, `Chart - ...`, `Table - ...`.
-5. **Create the dashboard** and add saved questions in section order.
-6. **Add dashboard filters** and map each filter to every card that should
-   respond.
-7. **Format** numbers, legends, sorting, colors, and table columns.
-8. **Run QA** with no filters, with each filter individually, and after
-   clearing filters.
+2. **Choose the path.** Manual UI for one dashboard; API seeder for a repeatable
+   multi-dashboard build. Use the table above.
+3. **Create the collection/model.** Point the model at the analysis-ready table;
+   give it a clear name and description.
+4. **Plan the card inventory.** KPI row, then demographics, usage,
+   engagement/popularity, and the detail table.
+5. **Build and save questions** in the collection. Use `KPI - ...`,
+   `Chart - ...`, `Table - ...`.
+6. **Create the dashboard** and add saved questions in section order.
+7. **Add dashboard filters** and map each filter to every card that should
+   respond. Leave a card unmapped when filtering changes its meaning.
+8. **Format** numbers, legends, sorting, colors, and table columns.
+9. **Run QA** with no filters, each filter individually, and after clearing.
+10. **Export the definitions** to JSON and commit them.
+11. **Back up the application database** at milestones and before resets.
+
+## Bulk API path
+
+Use this when the inventory has more than a handful of cards, or when the build
+must be repeatable. The source of truth is `metabase/definitions.json`; the
+bundled seeder creates/adopts collections, cards, and dashboards.
+
+Scaffold a new project (creates `scripts/`, `metabase/README.md`,
+`metabase/.gitignore`, `metabase/definitions.json`, and the export/backup
+folders):
+
+```powershell
+uv run python .agents\skills\building-metabase-dashboards\scripts\scaffold_metabase.py --target "C:\path\to\project"
+```
+
+The commands below assume the scaffold has created `scripts/` in the target
+project. Then fill in the definitions and run:
+
+```powershell
+uv run python scripts\seed_metabase.py --definitions metabase\definitions.json --dry-run
+uv run python scripts\seed_metabase.py --definitions metabase\definitions.json --dashboard supply
+uv run python scripts\seed_metabase.py --definitions metabase\definitions.json
+```
+
+Rules:
+
+- The API key must be in `.env`; never in the definitions file.
+- The bundled seeder creates native SQL cards. Create query-builder cards in
+  the UI, or extend the definitions schema with MBQL.
+- Resolve `schema.table.column` to numeric field IDs from
+  `GET /api/database/{id}/metadata`. Field IDs are instance-local.
+- Native SQL cards use `WHERE {{filter}}` Field Filter tags, never
+  `column = {{filter}}` or quoted variables.
+- Match by exact name within a collection. Use `aliases` to adopt partial work;
+  never create a duplicate.
+- New dashcards use negative IDs. Existing dashcards keep their IDs, mappings,
+  and visualization settings.
+- Preserve unrelated cards and dashboard parameters; do not rewrite a completed
+  dashboard.
+- Add filters in a second pass if the user asked for provisioning only. The
+  cards are filter-ready.
+- `--relayout` resets the grid; use it only when intended.
+- On Windows, use `127.0.0.1`; Python's `localhost` can add ~2s per request.
+
+Full payloads, definitions schema, and adoption rules:
+[Metabase API provisioning](references/metabase-api-provisioning.md).
+
+## Save, export, and restore
+
+| Need | Artifact | Commit? | Restores Metabase? |
+| --- | --- | --- | --- |
+| Review/version dashboard definitions | JSON export | Yes | No |
+| Exact restore after upgrade/deletion | App DB dump | **No** | Yes |
+| Native YAML import | Pro/Enterprise serialization | Yes | Yes (paid) |
+
+```powershell
+uv run python scripts\export_metabase.py --collection-id 5
+.\scripts\backup_metabase.ps1
+.\scripts\restore_metabase.ps1 -DumpFile .\metabase\backups\metabase_20261106_142757.dump
+```
+
+- The JSON export strips users, secrets, timestamps, and query metadata.
+- The dump contains users, password hashes, settings, and sessions. Keep it
+  private and gitignored.
+- Test a dump by restoring into a scratch database before relying on it.
+- Commit the JSON export and definitions; ignore `.env` and `*.dump`.
+- Metabase's native serialization is Pro/Enterprise only; the OSS image uses JSON
+  export + app DB dump.
+
+Full persistence model, sizes, restore drill, and security:
+[Metabase export and backup](references/metabase-export-and-backup.md).
 
 ## Card inventory
 
-Adapt this inventory to the new dataset. The visualization column is a starting
-point, not a hard requirement.
+The project has five dashboards and 66 saved questions. The full card list,
+descriptions, expected values, and layout for each dashboard are in the
+[Dashboard Build Guide](references/dashboard-build-guide.md).
 
-| # | Question name | Visualization | Source |
-| ---: | --- | --- | --- |
-| 1 | KPI - Total Members | Number | Wide table |
-| 2 | KPI - Active Personal Trainers | Number | Wide table |
-| 3 | KPI - Group Lessons | Number | Lesson list |
-| 4 | KPI - Average Visits per Week | Number | Wide table |
-| 5 | KPI - Average Session Duration | Number | Wide table |
-| 6 | Chart - Membership Type | Pie or bar | Wide table |
-| 7 | Chart - Gender Distribution | Pie or bar | Wide table |
-| 8 | Chart - Age Groups | Bar | Wide table |
-| 9 | Chart - Personal Training Usage | Pie or bar | Wide table |
-| 10 | Chart - Sauna Usage | Pie or bar | Wide table |
-| 11 | Chart - Group Lesson Attendance | Pie or bar | Wide table |
-| 12 | Chart - Drink Package Adoption | Pie or bar | Wide table |
-| 13 | Chart - Visit Frequency Distribution | Bar | Wide table |
-| 14 | Chart - Session Duration Distribution | Bar | Wide table |
-| 15 | Chart - Weekly Activity | Bar | Wide table |
-| 16 | Chart - Hourly Check-in and Check-out | Line | Wide table |
-| 17 | Chart - Lesson Popularity | Bar | Wide table |
-| 18 | Chart - Drink Popularity | Bar | Wide table |
-| 19 | Chart - Trainer Popularity | Bar | Wide table |
-| 20 | Table - Member Detail | Table | Wide table |
+| # | Dashboard | Cards | Primary sources |
+| ---: | --- | ---: | --- |
+| 1 | Executive Overview | 14 | `dim_listings`, `dim_hosts`, `fct_reviews`, `mart_executive_kpis`, `mart_market_monthly` |
+| 2 | Supply and Pricing | 13 | `mart_listing_performance`, `mart_price_bands`, `mart_room_type_benchmark` |
+| 3 | Guest Experience | 14 | `fct_reviews`, `mart_review_topics`, `mart_market_monthly` |
+| 4 | Host Portfolio | 13 | `mart_host_performance`, `dim_hosts` |
+| 5 | Listing Explorer | 12 | `mart_listing_performance` |
 
-Use the **Description** field on every saved question to explain what it
-measures and whether members can appear more than once. Use the exact
-descriptions in the
-[Question descriptions](references/dashboard-build-guide.md#question-descriptions)
-section of the build guide.
+Use the `KPI - ...`, `Chart - ...`, and `Table - ...` prefixes. Put each
+dashboard's questions in its own subcollection under `Airbnb Analytics`. Names
+repeat across dashboards, so the **Description** field is what distinguishes
+them.
+
+`Model - Listings` is the query-builder model over
+`analytics.mart_listing_performance`. Native SQL cards may read
+`analytics.dim_listings` directly where the build guide says so; both paths are
+valid and must produce the same expected totals. Native SQL cannot read a
+Metabase model, so it uses the underlying table.
+
+Every question needs a description that states the measure and the grain. Use
+the per-dashboard question-description tables in the build guide.
 
 ## Dashboard layout
 
-```text
-Row 1: 5 KPI number cards
-Row 2: Membership type | Gender | Age groups
-Row 3: Personal training | Sauna | Group lessons | Drink package
-Row 4: Visit frequency | Session duration | Weekly activity
-Row 5: Hourly trend (full width)
-Row 6: Lesson popularity | Drink popularity | Trainer popularity
-Row 7: Member detail table (full width)
-```
+The project uses a 24-column grid:
 
-Use **Text cards** as section headings:
+- 5 KPI cards on row 1: widths `5, 5, 5, 5, 4`, height 3.
+- Two charts per row: width 12, height 6.
+- Full-width trends and tables: width 24, height 6-8.
+- Tables: width 24, height 7.
 
-- Overview
-- Member Demographics
-- Facility and Service Usage
-- Engagement and Popularity
-- Member Detail
+The exact per-dashboard layout is in the build guide. Use **Text cards** for
+section headings only when the dashboard needs them.
 
 ## Native SQL filter recipe
 
 Use this only when the card must stay as native SQL. Every card that should
 respond to a dashboard filter needs the filter variable in its SQL.
 
-### Worked example: six filters
+### Worked example: Supply and Pricing filters
 
 | Dashboard filter | Filter type | Column |
 | --- | --- | --- |
-| Gender | Text or Category | `gender` |
-| Membership Type | Text or Category | `abonoment_type` |
-| Personal Training | Boolean | `personal_training` |
-| Sauna Usage | Boolean | `uses_sauna` |
-| Group Lesson Attendance | Boolean | `attend_group_lesson` |
-| Drink Package | Boolean | `drink_abo` |
+| Room type | Text or Category | `room_type` |
+| Price band | Text or Category | `price_band` |
+| Minimum nights band | Text or Category | `minimum_nights_band` |
+| Superhost | Boolean | `is_superhost` |
+| Price range | Number | `price` |
 
 ### SQL block
 
 Add the filters to the `WHERE` clause of every native SQL card:
 
 ```sql
-SELECT COUNT(*) AS total_members
-FROM gym_members_wide
-WHERE {{gender}}
-  AND {{abonoment_type}}
-  AND {{personal_training}}
-  AND {{uses_sauna}}
-  AND {{attend_group_lesson}}
-  AND {{drink_abo}};
+SELECT COUNT(*) AS total_listings
+FROM analytics.dim_listings
+WHERE {{room_type}}
+  AND {{price_band}}
+  AND {{minimum_nights_band}}
+  AND {{is_superhost}}
+  AND {{price}};
 ```
 
 Notes:
 
-- Use `WHERE {{gender}}`, **not** `WHERE gender = {{gender}}`. A Field Filter
-  inserts the column, operator, and value handling.
-- Field Filters are optional by default. `AND {{gender}}` is enough.
-- `WHERE 1=1 [[AND {{gender}}]]` also works when the variables are Field
-  Filters, but the direct `AND {{gender}}` form is simpler.
-- Do not use `'{{gender}}'` or wrap the variable in quotes.
+- Use `WHERE {{room_type}}`, **not** `WHERE room_type = {{room_type}}`. A Field
+  Filter inserts the column, operator, and value handling.
+- Field Filters are optional by default. `AND {{room_type}}` is enough.
+- Do not use `'{{room_type}}'` or wrap the variable in quotes.
+- The filter's field must belong to a table present in the query. For a card on
+  a mart, map to the mart's own column.
+- Map only the filters the card exposes. The SQL reference has a per-card
+  availability table for every dashboard.
 
 ### Variable settings
 
@@ -184,14 +273,13 @@ For each variable in the Metabase **Variables** panel:
 
 | Variable | Variable type | Field to map to | Widget type |
 | --- | --- | --- | --- |
-| `{{gender}}` | Field Filter | `gym_members_wide.gender` | Category / Dropdown list |
-| `{{abonoment_type}}` | Field Filter | `gym_members_wide.abonoment_type` | Category / Dropdown list |
-| `{{personal_training}}` | Field Filter | `gym_members_wide.personal_training` | Boolean |
-| `{{uses_sauna}}` | Field Filter | `gym_members_wide.uses_sauna` | Boolean |
-| `{{attend_group_lesson}}` | Field Filter | `gym_members_wide.attend_group_lesson` | Boolean |
-| `{{drink_abo}}` | Field Filter | `gym_members_wide.drink_abo` | Boolean |
+| `{{room_type}}` | Field Filter | `analytics.dim_listings.room_type` | Category / Dropdown list |
+| `{{price_band}}` | Field Filter | `analytics.dim_listings.price_band` | Category / Dropdown list |
+| `{{minimum_nights_band}}` | Field Filter | `analytics.dim_listings.minimum_nights_band` | Category / Dropdown list |
+| `{{is_superhost}}` | Field Filter | `analytics.dim_listings.is_superhost` | Boolean |
+| `{{price}}` | Field Filter | `analytics.dim_listings.price` | Number |
 
-**Critical:** typing `{{gender}}` creates a template tag, but Metabase often
+**Critical:** typing `{{room_type}}` creates a template tag, but Metabase often
 defaults it to **Text**. Change the variable type to **Field Filter**, choose
 the matching field, and turn **Always require a value** off if the question
 should run with no filters selected. Save the question before mapping it on a
@@ -201,12 +289,11 @@ dashboard.
 
 | Dashboard filter | Filter type | Maps to variable |
 | --- | --- | --- |
-| Gender | Text or Category | `gender` |
-| Membership Type | Text or Category | `abonoment_type` |
-| Personal Training | Boolean | `personal_training` |
-| Sauna Usage | Boolean | `uses_sauna` |
-| Group Lesson Attendance | Boolean | `attend_group_lesson` |
-| Drink Package | Boolean | `drink_abo` |
+| Room type | Text or Category | `room_type` |
+| Price band | Text or Category | `price_band` |
+| Minimum nights band | Text or Category | `minimum_nights_band` |
+| Superhost | Boolean | `is_superhost` |
+| Price range | Number | `price` |
 
 For text filters, keep **Filter operator: Is**. For the text filters, choose
 **Multiple values** if multi-select is wanted. Boolean filters are typically
@@ -225,28 +312,47 @@ matching variable, it cannot be mapped and will ignore the filter.
 
 ## Aliases and CTEs
 
-- If the SQL aliases the table, for example `FROM gym_members_wide w`, fill in
-  **Table and field alias** for each Field Filter, for example `w.gender`.
-- If the SQL uses a CTE and the field filter is outside the CTE, use the CTE
-  alias instead.
-- The provided SQL avoids aliasing `gym_members_wide` so the alias field can be
-  left blank.
-- If a card's source table does not contain the filter columns, join it to the
-  wide table or leave that card unfiltered. Example: the Group Lessons KPI
-  reads `gym_member_lessons`, so join `gym_members_wide` on member ID to make it
-  filterable.
+- The filterable SQL in this project avoids table aliases wherever possible.
+- The one joined card is Guest Experience `Chart - Reviews by Room Type`:
+  `analytics.fct_reviews AS r` joined to `analytics.dim_listings AS l`.
+  Set **Table and field alias** for each filter: `r.review_date`,
+  `r.review_sentiment`, `r.has_comment`, and `l.room_type`.
+- If you add a join, apply the same rule: alias plus column.
+- If a card's source does not contain the filter field, join the table or leave
+  the card unfiltered. Do not map a field from a table that is not in the query.
+- The API seeder prefers unaliased SQL; if a definition includes a join, use the
+  alias form or rewrite the SQL unaliased.
 
 ## Common mistakes
 
 - Converting a simple query-builder card to native SQL, then having to configure
-  six variables. Use the query builder unless the SQL is genuinely complex.
-- Leaving `{{gender}}` as a **Text** variable. It must be a **Field Filter**
+  many variables. Use the query builder unless the SQL is genuinely complex.
+- Leaving `{{room_type}}` as a **Text** variable. It must be a **Field Filter**
   mapped to the field.
 - Using Text or Category dashboard filters for boolean columns. Use **Boolean**.
 - Mapping a filter to only some cards. Map it to every card that should respond.
-- Writing `gender = {{gender}}` for a Field Filter. Use `WHERE {{gender}}`.
+- Writing `room_type = {{room_type}}` for a Field Filter. Use
+  `WHERE {{room_type}}`.
 - Assuming a dashboard filter will apply to a card that has no matching
   variable. It will not.
+- Mapping a filter to a mart card that does not expose that column. Check the
+  per-card availability table in the SQL reference first.
+- Bulk-seeding without a recent application-database backup. Take one before
+  the first write and before a rerun that updates existing cards.
+- Hardcoding field IDs and reusing them across Metabase instances. Field IDs are
+  instance-local; resolve them from `/api/database/{id}/metadata`.
+- Matching cards by name globally. Match by name **within the target
+  collection**, and use `aliases` for partial work.
+- Creating new dashboard cards with positive IDs. Use negative IDs for new
+  dashcards and real IDs for existing ones.
+- Rewriting a completed dashboard. Skip it with `"skip": true` and preserve
+  unrelated cards, parameters, and filter mappings.
+- Committing `.env`, the API key, or `metabase/backups/*.dump` to Git.
+- Assuming Metabase OSS has native YAML serialization. It is Pro/Enterprise.
+- Editing generated JSON export files by hand; the next export replaces them.
+- Treating the JSON export as a restorable backup. Use the application DB dump.
+- Using `localhost` in Python scripts on Windows; every request can take ~2s.
+  Use `127.0.0.1`.
 
 ## Troubleshooting
 
@@ -254,7 +360,7 @@ matching variable, it cannot be mapped and will ignore the filter.
 | --- | --- | --- |
 | `A text variable in this card can only be connected to a text filter with Is operator` | The card has no mappable variable, or the variable is still Text | Add the `{{...}}` tag, set type to **Field Filter**, map the field |
 | `Cannot run the query: missing required parameters` | Variables are Text, or **Always require a value** is on | Change to **Field Filter**, map fields, turn off **Always require a value** |
-| `argument of AND must be type boolean, not type character varying` | A Text variable was used where a Field Filter was needed; a value was substituted as `AND 'Female'` | Change the variable to **Field Filter** and map it |
+| `argument of AND must be type boolean, not type character varying` | A Text variable was used where a Field Filter was needed; a value was substituted as `AND 'Entire home/apt'` | Change the variable to **Field Filter** and map it |
 | `operator does not exist: boolean = character varying` | Text/Category dashboard filter connected to a boolean column | Change the dashboard filter to **Boolean** |
 | Field Filter does not appear in the dashboard mapping panel | Question not saved, or dashboard editor is stale | Save the question, reload the dashboard editor |
 | Filter changes one card but not another | Other card lacks the matching variable or mapping | Add the variable to that card and map the filter |
@@ -267,76 +373,111 @@ For the full error explanations and parameter behavior, read
 ## Visualization and formatting
 
 - **KPI cards:** one row, equal width, no unnecessary decimals.
-- **Pie charts:** show the legend and percentage labels.
-- **Bar charts:** sort descending for popularity; keep source order for days and
-  visit frequency.
-- **Line chart:** use `hour` on the X-axis, `members` on the Y-axis, `event` as
-  the series breakout, and distinct colors for check-ins/check-outs.
-- **Tables:** hide unnecessary columns, set a sensible row limit, and enable
-  downloads if useful.
+- **Pie charts:** room type or sentiment; show the legend and percentage labels.
+- **Bar charts:** sort popularity descending. Keep the explicit order for price
+  bands (`<30`, `30-49`, ...) and minimum-night bands (`1`, `2-6`, ...), not
+  alphabetical.
+- **Line charts:** month on the X-axis; reviews, sentiment, or share on the Y;
+  room type or sentiment as the series breakout. Cap review trends at
+  `2021-10-01`.
+- **Tables:** listing and host detail; hide technical IDs, set a row limit, and
+  enable downloads where useful.
 - Add a short description to each saved question explaining what it measures.
 
 ## QA checklist
 
-- [ ] Total members equals the expected total.
-- [ ] Category distributions sum to the total.
-- [ ] Boolean distributions sum to the total.
-- [ ] Popularity totals match the expected selections.
-- [ ] Weekly activity totals match the expected member-days.
+- [ ] `KPI - Total Listings` = `17,499`.
+- [ ] `KPI - Total Hosts` = `14,111`.
+- [ ] `KPI - Total Reviews` = `410,283`.
+- [ ] Room type counts sum to `17,499`.
+- [ ] Sentiment counts sum to `410,283`.
+- [ ] Price band counts sum to `17,499`.
+- [ ] Host segment counts on the host dashboard sum to `14,111`.
+- [ ] Listing-grain host segment counts sum to `17,499`.
+- [ ] Topic mentions total `588,037` (not unique reviews).
 - [ ] Every filter changes its intended cards and can be cleared.
 - [ ] No card shows an error or an unexpected empty result.
-- [ ] Dashboard is saved in the project collection.
+- [ ] All five dashboards are saved under `Airbnb Analytics`.
+- [ ] A second seeder `--dry-run` reports every card and dashboard as existing.
+- [ ] Representative KPI/chart/table cards execute and match expected values.
+- [ ] The export manifest counts match the collections/cards/dashboards.
+- [ ] No email, API key, password, or `public_uuid` appears in the export.
+- [ ] `.env` and `*.dump` are gitignored and not staged.
+- [ ] A dump restores into a scratch database and Metabase reports healthy.
 
-For the Gym Membership worked example, the expected unfiltered values are:
+For the Airbnb Berlin worked example, the key unfiltered values are:
 
-- Total Members: `1000`
-- Membership Type totals: `1000`
-- Gender totals: `1000`
-- Active Personal Trainers: `4`
-- Group Lessons: `11`
-- Lesson Popularity rows total: `1003` selections
-- Drink Popularity rows total: `719` selections
-- Weekly Activity rows total: `2682` member-days
+- Total Listings: `17,499`
+- Total Hosts: `14,111`
+- Total Reviews: `410,283`
+- Active Listings (12m): `6,050`
+- Avg Nightly Price: `70.41` (median `55`)
+- Positive Review Share: `56.68%`
+- Negative Review Share: `7.33%`
+- Total Topic Mentions: `588,037`
 
-## Reusing the pattern on a new project
+## Reusing this project's pattern
 
-1. Identify the analysis-ready wide table and its grain.
-2. Identify the filter columns and their types.
-3. Build the KPI, demographic, usage, popularity, and detail cards.
-4. Prefer the query builder for simple cards.
-5. If a card must be native SQL, add one Field Filter per filter and map it to
-   the matching field.
-6. Use the same variable names and dashboard filter types on every card.
-7. Map every dashboard filter to every intended card.
-8. Run the QA checklist with no filters, one filter, and multiple filters.
+1. Keep the five dashboard collections and the 66-card inventory as the contract.
+2. Reuse the models: `Model - Listings`, `Model - Hosts`, `Model - Reviews`,
+   and `Model - Reviews with listing attributes`.
+3. Build the KPI, supply, guest, host, and listing cards in that order.
+4. Prefer the query builder for simple cards; use native SQL for complex cards.
+5. Use the same filter names and dashboard filter types across dashboards.
+6. Map every filter to every intended card; leave semantically incompatible
+   cards unmapped.
+7. Run QA unfiltered, with each filter, and after clearing.
+8. Export the definitions and back up the application database.
 
 ## Shortcuts and limits
 
 - Metabase has no built-in **copy variables** button.
 - A practical UI shortcut: configure one native SQL card correctly, duplicate
-  it, replace only the SQL with the next card's query, and verify the six Field
+  it, replace only the SQL with the next card's query, and verify the Field
   Filter settings persist in the duplicate. Test with one duplicate first.
 - The query builder is the best shortcut for simple cards because filters map
   directly to columns with no SQL variables.
+- For multi-dashboard builds, the API seeder is the normal path. Create one
+  golden card for each display/filter shape, export its JSON, and use that
+  structure in the definitions file.
 - Do not force a filter onto a card where it changes the meaning of the card.
   It is valid to leave some cards unfiltered.
-- If using the Metabase API or app database to copy template tags, back up the
-  cards first and verify the JSON structure; this is advanced and not the
-  normal UI path.
+- Do not run a bulk API update without an application-database backup and a
+  `--dry-run` plan.
 
 ## References
 
-Read the relevant reference before building. These are exact copies of the
-project documentation.
+Read the relevant reference before building. The first three are the manual
+UI/parameter references; the last two cover the API and persistence paths.
 
-- [Dashboard Build Guide](references/dashboard-build-guide.md) — build order,
-  card inventory, visualizations, layout, filters, and QA.
+- [Dashboard Build Guide](references/dashboard-build-guide.md) — Airbnb Berlin
+  manual build guide: five dashboards, 66 cards, question descriptions, expected
+  values, layouts, filters, and gotchas.
 - [Dashboard SQL with Field Filters](references/dashboard-sql-with-filters.md) —
-  all 20 filtered SQL queries, variable settings, troubleshooting, and
-  verification.
+  Airbnb native SQL for all 66 cards: per-dashboard variables, per-card filter
+  availability, alias settings, troubleshooting, and verification.
 - [Metabase Parameter Types Reference](references/Metabase_Parameter_Types_Reference.md) —
   basic variables, optional variables, Field Filters, aliases, boolean fields,
-  and the exact error explanations.
+  and exact error explanations, using Airbnb examples.
+- [Metabase API Provisioning](references/metabase-api-provisioning.md) —
+  definitions schema, field-ID resolution, native SQL tags, collections, cards,
+  dashboards, dashcards, layout, filters, idempotency, troubleshooting.
+- [Metabase Export and Backup](references/metabase-export-and-backup.md) —
+  JSON export, application-database dump/restore, Pro serialization, Git
+  hygiene, restore drills, security.
 
-Maintenance: if the project docs change, re-copy the three files into
-`references/` so the skill stays exact.
+Bundled tools:
+
+- `scripts/scaffold_metabase.py` — create the `scripts/` + `metabase/` project
+  structure and starter definitions.
+- `scripts/seed_metabase.py` — idempotent API seeder.
+- `scripts/export_metabase.py` — Git-friendly JSON export.
+- `scripts/backup_metabase.ps1` / `scripts/restore_metabase.ps1` — exact app DB
+  backup and restore.
+- `assets/definitions.example.json` — minimal definitions schema.
+
+Maintenance: the first two references mirror the Airbnb
+`Postgres Version/docs/METABASE_DASHBOARDS.md` and
+`METABASE_SQL_WITH_FILTERS.md` files; re-copy them if those change. The
+parameter reference uses Airbnb examples; the API and persistence references
+are skill-owned and should be updated when the API payloads change.

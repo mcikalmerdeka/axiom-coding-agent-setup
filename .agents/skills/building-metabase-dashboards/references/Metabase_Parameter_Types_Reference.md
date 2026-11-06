@@ -3,7 +3,7 @@
 This project uses native SQL questions on PostgreSQL. There are three common
 ways to add parameters/filters to a native SQL question in Metabase.
 
-For copy-paste-ready queries for all 20 dashboard cards, see
+For copy-paste-ready queries for all 66 dashboard cards, see
 [Dashboard SQL with Field Filters](dashboard-sql-with-filters.md).
 
 ## 1. Basic variables (`{{parameter}}`)
@@ -13,7 +13,7 @@ For copy-paste-ready queries for all 20 dashboard cards, see
 WHERE column = {{parameter_name}}
 
 -- Example
-WHERE gender = {{gender}}
+WHERE room_type = {{room_type}}
 ```
 
 ### Setup
@@ -41,7 +41,7 @@ WHERE gender = {{gender}}
 WHERE 1=1 [[AND column = {{parameter_name}}]]
 
 -- Example
-WHERE 1=1 [[AND gender = {{gender}}]]
+WHERE 1=1 [[AND room_type = {{room_type}}]]
 ```
 
 Optional variables are basic variables wrapped in optional SQL clauses. The
@@ -65,7 +65,7 @@ clause is omitted when no value is supplied in the question editor.
 WHERE {{parameter_name}}
 
 -- Example
-WHERE {{gender}} AND {{abonoment_type}}
+WHERE {{room_type}} AND {{price_band}}
 ```
 
 ### Setup
@@ -74,7 +74,7 @@ WHERE {{gender}} AND {{abonoment_type}}
 - In the Variables panel, set the variable type to **Field Filter**.
 - Choose the database field the variable should filter.
 - If the table is aliased in the SQL, fill in **Table and field alias**
-  (for example, `w.gender`).
+  (for example, `l.room_type`).
 
 ### Dashboard behavior
 
@@ -94,14 +94,13 @@ WHERE {{gender}} AND {{abonoment_type}}
 Use Field Filters for native SQL cards that need dashboard filtering.
 
 ```sql
-SELECT COUNT(*) AS total_members
-FROM gym_members_wide
-WHERE {{gender}}
-  AND {{abonoment_type}}
-  AND {{personal_training}}
-  AND {{uses_sauna}}
-  AND {{attend_group_lesson}}
-  AND {{drink_abo}};
+SELECT COUNT(*) AS total_listings
+FROM analytics.dim_listings
+WHERE {{room_type}}
+  AND {{price_band}}
+  AND {{minimum_nights_band}}
+  AND {{is_superhost}}
+  AND {{price}};
 ```
 
 ### Setup steps
@@ -140,9 +139,10 @@ Change each variable to **Field Filter**, map it to a field, and turn off
 
 ### "argument of AND must be type boolean, not type character varying"
 
-A Text variable was used inside `[[AND {{gender}}]]` and a value was supplied.
-Metabase replaced the variable with just the value, producing `AND 'Female'`.
-Change the variable to **Field Filter** and map it to the field.
+A Text variable was used inside `[[AND {{room_type}}]]` and a value was supplied.
+Metabase replaced the variable with just the value, producing
+`AND 'Entire home/apt'`. Change the variable to **Field Filter** and map it to
+the field.
 
 ## Requiring a value
 
@@ -164,24 +164,23 @@ For optional dashboard filters, leave it off.
 If the SQL aliases the table, for example:
 
 ```sql
-FROM gym_members_wide w
+FROM analytics.fct_reviews AS r
+INNER JOIN analytics.dim_listings AS l ON r.listing_id = l.listing_id
 ```
 
 set **Table and field alias** in each Field Filter's settings to:
 
 ```text
-w.gender
-w.abonoment_type
-w.personal_training
-w.uses_sauna
-w.attend_group_lesson
-w.drink_abo
+r.review_date
+r.review_sentiment
+r.has_comment
+l.room_type
 ```
 
 If the SQL uses a CTE and the field filter is outside the CTE, use the CTE
-alias instead. The updated queries in
-[Dashboard SQL with Field Filters](dashboard-sql-with-filters.md) do not alias
-`gym_members_wide`, so you can leave the alias blank for those.
+alias instead. Most updated queries in
+[Dashboard SQL with Field Filters](dashboard-sql-with-filters.md) avoid table
+aliases; Guest Experience card 3.9 is the joined exception.
 
 ## Multiple values
 
@@ -192,8 +191,8 @@ alias instead. The updated queries in
 
 ## Boolean columns
 
-For TRUE/FALSE columns such as `personal_training`, `uses_sauna`,
-`attend_group_lesson`, and `drink_abo`:
+For TRUE/FALSE columns such as `is_superhost`, `has_comment`,
+`is_active_last_12m`, and `is_price_outlier`:
 
 - Use a Field Filter with the Boolean widget type.
 - Use a Boolean dashboard filter.

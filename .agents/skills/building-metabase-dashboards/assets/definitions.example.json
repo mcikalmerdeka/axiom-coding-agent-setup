@@ -1,0 +1,114 @@
+{
+  "notes": [
+    "Example schema for scripts/seed_metabase.py using the Airbnb Berlin project.",
+    "Replace root_collection_id, database_id, SQL table names, and field_id values if your instance differs.",
+    "Field IDs come from GET /api/database/{id}/metadata."
+  ],
+  "root_collection_id": 5,
+  "root_collection_name": "Airbnb Analytics",
+  "database_id": 2,
+  "dashboards": [
+    {
+      "key": "supply",
+      "collection": "Supply and Pricing Collection",
+      "dashboard": "Supply and Pricing Dashboard",
+      "description": "Price distribution, room-type benchmarks, minimum-night segments, and superhost pricing comparisons.",
+      "skip": false,
+      "cards": [
+        {
+          "key": "2.1",
+          "name": "KPI - Total Listings",
+          "description": "Count of listings matching the selected Supply filters. One row per listing; use this as the denominator for supply shares on this dashboard.",
+          "display": "scalar",
+          "sql": "SELECT COUNT(*) AS total_listings\nFROM analytics.dim_listings\nWHERE 1 = 1\n  AND {{room_type}}\n  AND {{price_band}}\n  AND {{minimum_nights_band}}\n  AND {{is_superhost}}\n  AND {{price}};",
+          "tags": [
+            {
+              "name": "room_type",
+              "field_id": 95,
+              "widget_type": "string/=",
+              "display_name": "Room Type"
+            },
+            {
+              "name": "price_band",
+              "field_id": 97,
+              "widget_type": "string/=",
+              "display_name": "Price Band"
+            },
+            {
+              "name": "minimum_nights_band",
+              "field_id": 100,
+              "widget_type": "string/=",
+              "display_name": "Minimum Nights Band"
+            },
+            {
+              "name": "is_superhost",
+              "field_id": 103,
+              "widget_type": "boolean/=",
+              "display_name": "Is Superhost"
+            },
+            {
+              "name": "price",
+              "field_id": 96,
+              "widget_type": "number/=",
+              "display_name": "Price"
+            }
+          ],
+          "aliases": [
+            "Total Listings"
+          ],
+          "visualization_settings": {},
+          "full_width": false
+        },
+        {
+          "key": "2.6",
+          "name": "Chart - Listings by Price Band",
+          "description": "Listings by derived price band, in band order. One row per listing; the chart collapses to one bar when the Price band filter is applied.",
+          "display": "bar",
+          "sql": "SELECT\n    price_band,\n    COUNT(*) AS listings\nFROM analytics.dim_listings\nWHERE 1 = 1\n  AND {{room_type}}\n  AND {{price_band}}\n  AND {{minimum_nights_band}}\n  AND {{is_superhost}}\n  AND {{price}}\nGROUP BY price_band\nORDER BY CASE price_band\n    WHEN '<30' THEN 1\n    WHEN '30-49' THEN 2\n    WHEN '50-74' THEN 3\n    WHEN '75-99' THEN 4\n    WHEN '100-149' THEN 5\n    WHEN '150-249' THEN 6\n    ELSE 7\nEND;",
+          "tags": [
+            {
+              "name": "room_type",
+              "field_id": 95,
+              "widget_type": "string/=",
+              "display_name": "Room Type"
+            },
+            {
+              "name": "price_band",
+              "field_id": 97,
+              "widget_type": "string/=",
+              "display_name": "Price Band"
+            },
+            {
+              "name": "minimum_nights_band",
+              "field_id": 100,
+              "widget_type": "string/=",
+              "display_name": "Minimum Nights Band"
+            },
+            {
+              "name": "is_superhost",
+              "field_id": 103,
+              "widget_type": "boolean/=",
+              "display_name": "Is Superhost"
+            },
+            {
+              "name": "price",
+              "field_id": 96,
+              "widget_type": "number/=",
+              "display_name": "Price"
+            }
+          ],
+          "aliases": [],
+          "visualization_settings": {
+            "graph.dimensions": [
+              "price_band"
+            ],
+            "graph.metrics": [
+              "listings"
+            ]
+          },
+          "full_width": false
+        }
+      ]
+    }
+  ]
+}

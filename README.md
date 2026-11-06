@@ -75,7 +75,7 @@ Project-type specific convention files:
 
 ### .agents/skills/
 Domain-specific skills that can be loaded on-demand:
-- `building-metabase-dashboards/` — Metabase dashboards from SQL with KPI cards, filters, and QA
+- `building-metabase-dashboards/` — Metabase dashboards from SQL: KPI cards, Field Filters, API seeding, JSON export, and app-database backup/restore
 - `data-science-utils/` — Bundled pandas/scikit-learn utilities, EDA reports, eval & tuning helpers
 - `developing-with-streamlit/` — Streamlit app development guides
 - `domain-modeling/` — Domain model, glossary & ADR documentation
@@ -104,12 +104,14 @@ node bin/cli.js
 
 ## Publishing to npm
 
-1. Login to npm:
+1. Bump the version in `package.json` (npm rejects a version that already exists).
+2. Commit and push to `main` — the CLI downloads files from GitHub, not from the npm tarball.
+3. Login to npm:
    ```bash
    npm login
    ```
 
-2. Publish the package:
+4. Publish the package:
    ```bash
    npm publish
    ```
