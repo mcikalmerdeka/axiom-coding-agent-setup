@@ -31,6 +31,12 @@ The matching question descriptions are in
 6. Save the question, then add it to the dashboard.
 7. Add the dashboard filters and map each one to the matching card variable.
 
+> For a bulk build, the dashboard filter pass is automated. Put the filter map
+> in `metabase/dashboard_filters.json` (schema:
+> [`assets/dashboard_filters.example.json`](../assets/dashboard_filters.example.json))
+> and run `scripts/add_dashboard_filters.py`. The SQL reference below remains
+> the source of truth for which tag each filter targets.
+
 ### Field Filter rules
 
 - Use `AND {{variable}}`, **not** `AND column = {{variable}}`. A Field Filter

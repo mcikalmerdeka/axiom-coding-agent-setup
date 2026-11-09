@@ -110,7 +110,9 @@ pre-aggregated benchmarks. The full source map is in
    `Chart - ...`, `Table - ...`.
 6. **Create the dashboard** and add saved questions in section order.
 7. **Add dashboard filters** and map each filter to every card that should
-   respond. Leave a card unmapped when filtering changes its meaning.
+   respond. Use `scripts/add_dashboard_filters.py` for the API pass, or the UI
+   for exploratory work. Leave a card unmapped when filtering changes its
+   meaning.
 8. **Format** numbers, legends, sorting, colors, and table columns.
 9. **Run QA** with no filters, each filter individually, and after clearing.
 10. **Export the definitions** to JSON and commit them.
@@ -119,24 +121,30 @@ pre-aggregated benchmarks. The full source map is in
 ## Bulk API path
 
 Use this when the inventory has more than a handful of cards, or when the build
-must be repeatable. The source of truth is `metabase/definitions.json`; the
-bundled seeder creates/adopts collections, cards, and dashboards.
+must be repeatable. The sources of truth are `metabase/definitions.json` (cards
+and dashboards) and `metabase/dashboard_filters.json` (dashboard filters). The
+bundled seeder creates/adopts collections, cards, and dashboards; the filter
+script adds and maps the dashboard parameters.
 
 Scaffold a new project (creates `scripts/`, `metabase/README.md`,
-`metabase/.gitignore`, `metabase/definitions.json`, and the export/backup
-folders):
+`metabase/.gitignore`, `metabase/definitions.json`,
+`metabase/dashboard_filters.json`, and the export/backup folders):
 
 ```powershell
 uv run python .agents\skills\building-metabase-dashboards\scripts\scaffold_metabase.py --target "C:\path\to\project"
 ```
 
 The commands below assume the scaffold has created `scripts/` in the target
-project. Then fill in the definitions and run:
+project. Then fill in both definitions files and run:
 
 ```powershell
 uv run python scripts\seed_metabase.py --definitions metabase\definitions.json --dry-run
 uv run python scripts\seed_metabase.py --definitions metabase\definitions.json --dashboard supply
 uv run python scripts\seed_metabase.py --definitions metabase\definitions.json
+
+uv run python scripts\add_dashboard_filters.py --definitions metabase\dashboard_filters.json --dry-run
+uv run python scripts\add_dashboard_filters.py --definitions metabase\dashboard_filters.json --dashboard supply
+uv run python scripts\add_dashboard_filters.py --definitions metabase\dashboard_filters.json
 ```
 
 Rules:
@@ -154,13 +162,28 @@ Rules:
   and visualization settings.
 - Preserve unrelated cards and dashboard parameters; do not rewrite a completed
   dashboard.
-- Add filters in a second pass if the user asked for provisioning only. The
-  cards are filter-ready.
+- Run `scripts/add_dashboard_filters.py` after seeding to create and map
+  dashboard filters. The seeder leaves filters to that pass.
 - `--relayout` resets the grid; use it only when intended.
 - On Windows, use `127.0.0.1`; Python's `localhost` can add ~2s per request.
 
-Full payloads, definitions schema, and adoption rules:
+Full payloads, definitions schema, filter schema, and adoption rules:
 [Metabase API provisioning](references/metabase-api-provisioning.md).
+
+### Dashboard filter pass
+
+`metabase/dashboard_filters.json` maps one dashboard filter per template-tag
+name. Each filter needs `name`, `slug`, `tag`, and `type`; optional keys are
+`section_id`, `values_query_type`, `is_multi`, `expected_cards`,
+`exclude_cards`, and `default`. The script maps the filter to every card that
+exposes the tag, preserves unrelated parameters/mappings/layout/tabs, and is
+idempotent by slug. `expected_cards` is an optional drift guard. Field Filters
+use the three-element dimension target; plain Text tags use the two-element
+variable target.
+
+Schema: [`assets/dashboard_filters.example.json`](assets/dashboard_filters.example.json).
+Detailed payloads and gotchas:
+[Metabase API provisioning](references/metabase-api-provisioning.md#dashboard-filters).
 
 ## Save, export, and restore
 
@@ -330,6 +353,16 @@ matching variable, it cannot be mapped and will ignore the filter.
 - Leaving `{{room_type}}` as a **Text** variable. It must be a **Field Filter**
   mapped to the field.
 - Using Text or Category dashboard filters for boolean columns. Use **Boolean**.
+- Forgetting the filter pass. The seeder creates cards and dashboards only; run
+  `scripts/add_dashboard_filters.py` to create the dashboard parameters.
+- Mapping a Text variable with a dimension target. Use
+  `["variable", ["template-tag", "tag"]]` with exactly two elements.
+- Setting a Boolean filter to `string/=` or `sectionId: "string"`. Use
+  `boolean/=` and `sectionId: "boolean"`.
+- Sending `dashcards` to `PUT /api/dashboard` without the existing `tabs`,
+  unrelated mappings, or layout. GET the full dashboard and reconcile.
+- Assuming a category value's casing. Read the values endpoint; the stored
+  values may be lowercase.
 - Mapping a filter to only some cards. Map it to every card that should respond.
 - Writing `room_type = {{room_type}}` for a Field Filter. Use
   `WHERE {{room_type}}`.
@@ -366,6 +399,9 @@ matching variable, it cannot be mapped and will ignore the filter.
 | Filter changes one card but not another | Other card lacks the matching variable or mapping | Add the variable to that card and map the filter |
 | `column ... does not exist` | Field Filter mapped to the wrong field, or alias setting missing | Correct the field mapping or table/field alias |
 | Filter works in the question but not on the dashboard | The dashboard filter is not connected to the card | Map the dashboard filter to the card's variable |
+| Filter returns 0 rows unexpectedly | Value casing/spacing differs from stored data | Read the values endpoint; use the exact stored value |
+| `vector with exactly 2 items` | A `stage-number` was added to a variable target | Use `["variable", ["template-tag", "tag"]]` |
+| Filter pass wipes layout or mappings | PUT omitted dashcards, tabs, or unrelated mappings | GET the full dashboard and resend everything |
 
 For the full error explanations and parameter behavior, read
 [Metabase Parameter Types Reference](references/Metabase_Parameter_Types_Reference.md).
@@ -396,6 +432,11 @@ For the full error explanations and parameter behavior, read
 - [ ] Listing-grain host segment counts sum to `17,499`.
 - [ ] Topic mentions total `588,037` (not unique reviews).
 - [ ] Every filter changes its intended cards and can be cleared.
+- [ ] Filter dry-run reports the documented parameter and mapping counts.
+- [ ] A second filter dry-run reports every filter as existing.
+- [ ] Every category filter returns dropdown values; every boolean/date/number
+  filter returns rows for a representative value.
+- [ ] No filter mapping references a tag that does not exist on its card.
 - [ ] No card shows an error or an unexpected empty result.
 - [ ] All five dashboards are saved under `Airbnb Analytics`.
 - [ ] A second seeder `--dry-run` reports every card and dashboard as existing.
@@ -440,6 +481,8 @@ For the Airbnb Berlin worked example, the key unfiltered values are:
 - For multi-dashboard builds, the API seeder is the normal path. Create one
   golden card for each display/filter shape, export its JSON, and use that
   structure in the definitions file.
+- For more than a handful of filters, use the filter script instead of the UI.
+  It reconciles parameters and mappings from a JSON file and is idempotent.
 - Do not force a filter onto a card where it changes the meaning of the card.
   It is valid to leave some cards unfiltered.
 - Do not run a bulk API update without an application-database backup and a
@@ -461,7 +504,8 @@ UI/parameter references; the last two cover the API and persistence paths.
   and exact error explanations, using Airbnb examples.
 - [Metabase API Provisioning](references/metabase-api-provisioning.md) —
   definitions schema, field-ID resolution, native SQL tags, collections, cards,
-  dashboards, dashcards, layout, filters, idempotency, troubleshooting.
+  dashboards, dashcards, filter schema and parameter mappings, idempotency,
+  troubleshooting.
 - [Metabase Export and Backup](references/metabase-export-and-backup.md) —
   JSON export, application-database dump/restore, Pro serialization, Git
   hygiene, restore drills, security.
@@ -470,14 +514,20 @@ Bundled tools:
 
 - `scripts/scaffold_metabase.py` — create the `scripts/` + `metabase/` project
   structure and starter definitions.
-- `scripts/seed_metabase.py` — idempotent API seeder.
+- `scripts/seed_metabase.py` — idempotent API seeder for collections, cards,
+  and dashboards.
+- `scripts/add_dashboard_filters.py` — idempotent API filter pass for dashboard
+  parameters and dashcard mappings.
 - `scripts/export_metabase.py` — Git-friendly JSON export.
 - `scripts/backup_metabase.ps1` / `scripts/restore_metabase.ps1` — exact app DB
   backup and restore.
-- `assets/definitions.example.json` — minimal definitions schema.
+- `assets/definitions.example.json` — card/dashboard definitions schema.
+- `assets/dashboard_filters.example.json` — dashboard filter schema, with the
+  full Airbnb filter map.
 
 Maintenance: the first two references mirror the Airbnb
 `Postgres Version/docs/METABASE_DASHBOARDS.md` and
 `METABASE_SQL_WITH_FILTERS.md` files; re-copy them if those change. The
 parameter reference uses Airbnb examples; the API and persistence references
-are skill-owned and should be updated when the API payloads change.
+are skill-owned and should be updated when the API payloads change. The filter
+example mirrors `Postgres Version/metabase/dashboard_filters.json`.

@@ -127,6 +127,11 @@ not edit generated metadata by hand.
 A complete filtered example with tags, aliases, and visualization settings is
 in [`assets/definitions.example.json`](../assets/definitions.example.json).
 
+A companion file, `metabase/dashboard_filters.json`, defines dashboard-level
+filters and their tag mappings. Its schema is in
+[`assets/dashboard_filters.example.json`](../assets/dashboard_filters.example.json);
+`scripts/add_dashboard_filters.py` consumes it.
+
 ### Field meanings
 
 | Field | Meaning |
@@ -227,6 +232,8 @@ Behavior:
 - If every target card is already on the dashboard, leaves the layout alone
   unless `--relayout` is passed.
 - Skips dashboards with `"skip": true`.
+- Does not create or map dashboard filters. Cards are built filter-ready; run
+  `scripts/add_dashboard_filters.py` in a second pass.
 
 ## 6. API mechanics
 
@@ -342,21 +349,99 @@ PUT /api/dashboard/3
 - **Do not delete unrelated cards:** append existing dashcards that are not in
   the target set back into the payload.
 
-### Dashboard filters (optional second pass)
+### Dashboard filters
 
-Dashboard parameter:
+Add filters in a second API pass, after the cards and dashboards exist. The
+bundled `scripts/add_dashboard_filters.py` reconciles
+`metabase/dashboard_filters.json` against the live dashboards. The payloads
+below document what the script sends and what to send if you implement it
+yourself.
+
+#### Filter definitions schema
 
 ```json
 {
-  "name": "Room Type",
-  "slug": "room_type",
-  "id": "a1b2c3d4",
-  "type": "string/=",
-  "sectionId": "string"
+  "root_collection_id": 5,
+  "dashboards": [
+    {
+      "key": "supply",
+      "collection": "Supply and Pricing Collection",
+      "dashboard": "Supply and Pricing Dashboard",
+      "filters": [
+        {
+          "name": "Room type",
+          "slug": "room_type",
+          "tag": "room_type",
+          "type": "string/=",
+          "section_id": "string",
+          "values_query_type": "list",
+          "is_multi": true,
+          "expected_cards": 12
+        }
+      ]
+    }
+  ]
 }
 ```
 
-Dashcard mapping:
+Filter fields:
+
+| Field | Meaning |
+| --- | --- |
+| `name` | Display name in the dashboard filter bar |
+| `slug` | Stable identity; existing parameters are matched by it |
+| `tag` | Template-tag name inside the native SQL card |
+| `type` | Dashboard parameter type (see table below) |
+| `section_id` | Widget section: `string`, `number`, `date`, `boolean`, `id`, `location`, `temporal-unit` |
+| `values_query_type` | `list` (dropdown), `search` (search box), or `none` |
+| `is_multi` | Multi-select for string/category filters |
+| `expected_cards` | Optional drift guard; abort if the live tag count differs |
+| `exclude_cards` | Optional card names that expose the tag but must not be mapped |
+| `default` | Optional default value |
+| `values_source_type` / `values_source_config` | Optional `static-list` or `card` value source |
+| `filteringParameters` / `temporal_units` | Optional linked-filter and time-grouping settings |
+
+#### Parameter types
+
+| Goal | `type` | `section_id` | `values_query_type` |
+| --- | --- | --- | --- |
+| Category / dropdown | `string/=` | `string` | `list` |
+| Category / search box | `string/=` | `string` | `search` |
+| Text contains | `string/contains` | `string` | `none` |
+| Boolean | `boolean/=` | `boolean` | `none` |
+| Exact number | `number/=` | `number` | `none` |
+| Number range | `number/between` | `number` | `none` |
+| Minimum number | `number/>=` | `number` | `none` |
+| Date picker | `date/all-options` | `date` | `none` |
+
+`sectionId` is what the frontend uses to choose the widget
+(`getParameterType` prefers `sectionId` over the type prefix). A boolean filter
+with `sectionId: "string"` can produce
+`operator does not exist: boolean = character varying`.
+
+#### Dashboard parameter payload
+
+```json
+{
+  "id": "a1b2c3d4",
+  "name": "Room type",
+  "slug": "room_type",
+  "type": "string/=",
+  "sectionId": "string",
+  "values_query_type": "list",
+  "isMultiSelect": true,
+  "default": null
+}
+```
+
+Generate a fresh 8-character hex `id` for a new parameter. Reuse the existing
+`id` when the `slug` already exists. Omit `values_source_type` to use live
+distinct values from the mapped field(s); `values_query_type: "list"` makes
+that a dropdown. Use `static-list` or `card` only when you want a fixed set.
+
+#### Dashcard mapping payload
+
+Field Filter / dimension tag:
 
 ```json
 {
@@ -366,11 +451,123 @@ Dashcard mapping:
 }
 ```
 
-Boolean filters use `type: "boolean/="`; date filters use
-`date/all-options`; numbers use `number/=` or `number/between`.
+Plain Text / basic variable tag (`type` is not `dimension`):
 
-A filter only affects cards where it is mapped. Do not map a filter to a card
-whose query lacks the variable.
+```json
+{
+  "parameter_id": "e5f6a7b8",
+  "card_id": 93,
+  "target": ["variable", ["template-tag", "host_name"]]
+}
+```
+
+The variable target has exactly two elements. A `stage-number` object on a
+variable target is rejected by Metabase 0.64. Field Filters always use the
+three-element dimension target.
+
+A filter only affects cards where it is mapped. Map it to every card that
+exposes the tag and should respond; skip cards whose meaning would change.
+
+#### PUT mechanics
+
+`PUT /api/dashboard/{id}` replaces the full `dashcards` and `parameters`
+collections:
+
+```json
+{
+  "dashcards": [
+    {
+      "id": 51,
+      "card_id": 54,
+      "row": 0,
+      "col": 0,
+      "size_x": 5,
+      "size_y": 3,
+      "parameter_mappings": [
+        {
+          "parameter_id": "a1b2c3d4",
+          "card_id": 54,
+          "target": ["dimension", ["template-tag", "room_type"], {"stage-number": 0}]
+        }
+      ],
+      "visualization_settings": {},
+      "inline_parameters": []
+    }
+  ],
+  "parameters": [],
+  "tabs": []
+}
+```
+
+- Read the dashboard first and send back every existing dashcard.
+- Preserve `id`, position, `visualization_settings`, `inline_parameters`, and
+  mappings for filters the script does not manage.
+- Send the existing `tabs` array whenever you send `dashcards`; omitting it can
+  orphan tab references or fail the update.
+- Use real IDs for existing dashcards; negative IDs only for new ones.
+- Match parameters by `slug`, not by array position or name.
+
+#### Commands
+
+```powershell
+# Backup first
+.\\scripts\\backup_metabase.ps1
+
+# Preview every filter and mapping; no writes
+uv run python scripts\\add_dashboard_filters.py --definitions metabase\\dashboard_filters.json --dry-run
+
+# Apply one dashboard, then the rest
+uv run python scripts\\add_dashboard_filters.py --definitions metabase\\dashboard_filters.json --dashboard supply
+uv run python scripts\\add_dashboard_filters.py --definitions metabase\\dashboard_filters.json
+```
+
+#### Verify filters
+
+```powershell
+# Confirm parameters and mappings persisted
+GET /api/dashboard/{id}
+
+# Confirm a dropdown has values
+GET /api/dashboard/{id}/params/{parameter-id}/values
+
+# Execute one mapped card with a filter
+POST /api/dashboard/{id}/dashcard/{dashcard-id}/card/{card-id}/query
+{"parameters": [{"id": "a1b2c3d4", "type": "string/=", "target": ["dimension", ["template-tag", "room_type"], {"stage-number": 0}], "value": ["Private room"]}], "ignore_cache": true}
+```
+
+Compare the filtered result with the unfiltered baseline, then clear the
+filter and run the card again. Check every filter type at least once.
+
+#### Filter gotchas
+
+- Use `boolean/=` plus `sectionId: "boolean"` for boolean columns.
+- `number/between` and `number/>=` work against a card tag whose widget type is
+  `number/=`. The dashboard parameter type controls the SQL operator.
+- Date range values use `YYYY-MM-DD~YYYY-MM-DD` with `date/all-options`.
+- Category values come from the data. If the stored values are lowercase
+  (`positive`, `neutral`), a manually typed `Positive` returns zero rows.
+- `values_query_type: "list"` on a filter mapped to several fields merges the
+  distinct values; confirm the fields share a domain.
+- Mapping a text variable with a dimension target makes the filter silently do
+  nothing or error; use the variable target.
+- Do not map a filter to a card whose query lacks the tag.
+- Do not run a bulk filter update without an app-DB backup and a dry-run plan.
+
+#### Text-search filters
+
+Text search needs a plain **Text** template tag in the card SQL, not a Field
+Filter. Add the optional clause first:
+
+```sql
+WHERE 1 = 1
+  [[AND LOWER(host_name) LIKE '%' || LOWER({{host_name}}) || '%']]
+```
+
+Then create the card parameter with type `string/contains`, target
+`["variable", ["template-tag", "host_name"]]`, and the dashboard filter with
+type `string/contains`, `sectionId: "string"`, `values_query_type: "none"`.
+The filter script maps cards whose tag type is not `dimension` with the variable
+target automatically.
 
 ### Verify a card
 
@@ -394,6 +591,12 @@ hundreds of thousands of rows; do not execute those just to verify metadata.
 - On rerun, if every target card is present, do not reposition the dashboard.
 - `--relayout` is destructive to the grid layout; use it only when intended.
 - `--dry-run` must make no writes.
+- Match dashboard filters by `slug`; update the existing parameter instead of
+  creating a duplicate.
+- Preserve parameters and mappings the filter script does not manage.
+- Add or update the mapping for every card that exposes the tag; remove stale
+  mappings for managed filters whose tag disappeared.
+- Enforce `expected_cards` when provided so a changed card tag aborts the run.
 
 ## 8. Verification checklist
 
@@ -405,7 +608,14 @@ hundreds of thousands of rows; do not execute those just to verify metadata.
 - [ ] Dashboard GET returns the expected number of dashcards and positions.
 - [ ] Existing dashboards outside the target set are untouched.
 - [ ] No duplicate card names within a collection.
-- [ ] Filters can be added later; card `parameters` expose the tags.
+- [ ] Every intended card exposes the tag used by its dashboard filter.
+- [ ] Filter dry-run reports the expected parameter and mapping counts.
+- [ ] A second filter dry-run reports every filter as existing.
+- [ ] `GET /api/dashboard/{id}/params/{parameter-id}/values` returns values for
+  category filters.
+- [ ] Each filter changes a mapped card, returns rows, and clears without error.
+- [ ] No mapping references a tag that does not exist on its card.
+- [ ] Text-search filters use the two-element variable target.
 
 ## 9. Troubleshooting
 
@@ -421,6 +631,12 @@ hundreds of thousands of rows; do not execute those just to verify metadata.
 | Every request takes ~2s | Python resolving `localhost` over IPv6 | Use `127.0.0.1` |
 | `202` but no rows in the sample | Query still running or result capped | Poll/refresh; verify the SQL directly |
 | App DB connection pool exhausted | Too many concurrent queries | Wait for prior queries; reduce parallelism |
+| Filter returns 0 rows unexpectedly | Value casing/spacing differs from stored data | Read the values endpoint; use the exact stored value |
+| `operator does not exist: boolean = character varying` | Boolean column mapped with a text filter | Use `boolean/=` and `sectionId: "boolean"` |
+| Filter changes nothing | Dashboard filter not mapped to the card, or card tag is Text | Add the mapping; make the card tag a Field Filter |
+| `vector with exactly 2 items` | A `stage-number` was added to a variable target | Use `["variable", ["template-tag", "tag"]]` |
+| Dashboard layout or mappings disappear after filter pass | PUT omitted dashcards/tabs or mappings | GET the full dashboard; preserve and resend everything |
+| Mapping count differs from the documented matrix | A card gained/lost a template tag | Fix the tag or `exclude_cards`; `expected_cards` aborts the run |
 
 ## 10. Security
 
@@ -440,8 +656,14 @@ The Airbnb project used this exact path:
 - 5 child collections and 5 dashboards.
 - 66 native SQL cards; 4 partially-created Supply cards adopted by alias.
 - Field IDs from `/api/database/2/metadata`.
-- Cards created with Field Filter tags; dashboard filters deferred to a later
-  pass.
-- Second `--dry-run` reported all 66 cards existing.
-- Export manifest: 6 collections, 66 cards, 5 dashboards, ~237 KB JSON.
+- Cards created with Field Filter tags in the first pass.
+- 22 dashboard filters and 183 mappings applied in the second pass with
+  `scripts/add_dashboard_filters.py`: Supply 5/38, Guest 6/33, Host 4/32,
+  Listing 7/80. The Executive Overview date filter was already manual.
+- `expected_cards` matched every filter; a second dry-run reported every filter
+  as existing with unchanged counts.
+- Representative filtered queries matched the documented values: Private room
+  `7,233`, price band `30-49` `4,849`, superhost `2,738`, active last 12m
+  `6,050`.
+- Export manifest: 6 collections, 66 cards, 5 dashboards, ~297 KB JSON.
 - App DB dump: ~1.2 MB.

@@ -1,6 +1,7 @@
 {
   "notes": [
     "Example schema for scripts/seed_metabase.py using the Airbnb Berlin project.",
+    "Dashboard filters are defined separately in dashboard_filters.example.json and applied by scripts/add_dashboard_filters.py.",
     "Replace root_collection_id, database_id, SQL table names, and field_id values if your instance differs.",
     "Field IDs come from GET /api/database/{id}/metadata."
   ],

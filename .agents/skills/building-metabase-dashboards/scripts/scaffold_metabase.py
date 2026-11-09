@@ -3,17 +3,19 @@
 
 Creates:
     scripts/seed_metabase.py
+    scripts/add_dashboard_filters.py
     scripts/export_metabase.py
     scripts/backup_metabase.ps1
     scripts/restore_metabase.ps1
     metabase/README.md
     metabase/.gitignore
     metabase/definitions.json
+    metabase/dashboard_filters.json
     metabase/backups/.gitkeep
     metabase/export/.gitkeep
 
-The starter definitions file uses placeholder IDs. Replace them with the real
-root collection ID and database ID before running the seeder.
+The starter definitions files use placeholder IDs. Replace them with the real
+root collection ID and database ID before running the scripts.
 
 Usage:
     uv run python scripts/scaffold_metabase.py --target C:/path/to/project
@@ -31,6 +33,7 @@ SKILL_ROOT = Path(__file__).resolve().parents[1]
 SOURCE_SCRIPTS = SKILL_ROOT / "scripts"
 COPIED_SCRIPTS = (
     "seed_metabase.py",
+    "add_dashboard_filters.py",
     "export_metabase.py",
     "backup_metabase.ps1",
     "restore_metabase.ps1",
@@ -44,7 +47,8 @@ This folder keeps the Metabase work reproducible outside the running container.
 metabase/
 |-- README.md
 |-- .gitignore
-|-- definitions.json          # source of truth for the API seeder
+|-- definitions.json          # source of truth for cards and dashboards
+|-- dashboard_filters.json    # source of truth for dashboard filters
 |-- backups/                  # private pg_dump files (gitignored)
 |   `-- .gitkeep
 `-- export/                   # committed, Git-friendly JSON snapshot
@@ -80,16 +84,48 @@ The full schema is in the `building-metabase-dashboards` skill reference
 
 ## 3. Seed the collections, questions, and dashboards
 
+Take an application-database backup before the first write:
+
+```powershell
+.\\scripts\\backup_metabase.ps1
+```
+
+Then preview and apply:
+
 ```powershell
 uv run python scripts\\seed_metabase.py --definitions metabase\\definitions.json --dry-run
 uv run python scripts\\seed_metabase.py --definitions metabase\\definitions.json
 ```
 
 The seeder is idempotent by name, adopts legacy names listed in `aliases`, and
-does not delete unrelated content. Dashboard filters are not created; the cards
-are filter-ready.
+does not delete unrelated content. Dashboard filters are not created here; the
+cards are filter-ready.
 
-## 4. Export the definitions to Git
+## 4. Add the dashboard filters
+
+Edit `dashboard_filters.json`:
+
+- Set `root_collection_id` to the same parent collection as `definitions.json`.
+- Add one dashboard object per dashboard, with `collection` and `dashboard`
+  names matching the live Metabase objects.
+- Add one filter per dashboard parameter: `name`, `slug`, `tag`, `type`,
+  `section_id`, `values_query_type`, `is_multi`, and optional `expected_cards`
+  or `exclude_cards`.
+- The `tag` must exist in the SQL of every card that should respond.
+
+Run the idempotent filter pass:
+
+```powershell
+uv run python scripts\\add_dashboard_filters.py --definitions metabase\\dashboard_filters.json --dry-run
+uv run python scripts\\add_dashboard_filters.py --definitions metabase\\dashboard_filters.json --dashboard supply
+uv run python scripts\\add_dashboard_filters.py --definitions metabase\\dashboard_filters.json
+```
+
+The filter script matches parameters by slug, preserves unrelated parameters,
+mappings, layout, and tabs, and aborts when an `expected_cards` count differs
+from the live tag count.
+
+## 5. Export the definitions to Git
 
 ```powershell
 uv run python scripts\\export_metabase.py --collection-id <root-collection-id>
@@ -99,7 +135,7 @@ Commit `metabase/export/`. The JSON contains collections, questions/models,
 dashboards, SQL, visualization settings, and filter mappings. It excludes users,
 passwords, API keys, and public-sharing tokens.
 
-## 5. Back up the application database
+## 6. Back up the application database
 
 ```powershell
 .\\scripts\\backup_metabase.ps1
@@ -121,8 +157,10 @@ Test a dump by restoring it into a scratch database before relying on it.
 
 ```text
 metabase/definitions.json
+metabase/dashboard_filters.json
 metabase/export/
 scripts/seed_metabase.py
+scripts/add_dashboard_filters.py
 scripts/export_metabase.py
 scripts/backup_metabase.ps1
 scripts/restore_metabase.ps1
@@ -162,6 +200,19 @@ STARTER_DEFINITIONS = {
     "root_collection_id": 1,
     "root_collection_name": "Analytics",
     "database_id": 1,
+    "dashboards": [],
+}
+
+STARTER_FILTERS = {
+    "notes": [
+        "Replace root_collection_id with the same parent collection as definitions.json.",
+        "Add one dashboard object per dashboard, with exact collection/dashboard names.",
+        "Each filter needs name, slug, tag, type, section_id, values_query_type, and is_multi.",
+        "expected_cards is an optional drift guard; exclude_cards skips specific cards.",
+        "The tag must exist in the SQL of every card that should respond.",
+        "Run scripts/add_dashboard_filters.py --dry-run before applying.",
+    ],
+    "root_collection_id": 1,
     "dashboards": [],
 }
 
@@ -211,10 +262,13 @@ def main() -> int:
     write_if_missing(metabase_dir / "export" / ".gitkeep", "", args.force)
     definitions = json.dumps(STARTER_DEFINITIONS, indent=2, ensure_ascii=False) + "\n"
     write_if_missing(metabase_dir / "definitions.json", definitions, args.force)
+    filters = json.dumps(STARTER_FILTERS, indent=2, ensure_ascii=False) + "\n"
+    write_if_missing(metabase_dir / "dashboard_filters.json", filters, args.force)
 
     print("\nScaffold ready.")
-    print("Next: edit metabase/definitions.json, then run:")
+    print("Next: edit metabase/definitions.json and metabase/dashboard_filters.json, then run:")
     print("  uv run python scripts/seed_metabase.py --definitions metabase/definitions.json --dry-run")
+    print("  uv run python scripts/add_dashboard_filters.py --definitions metabase/dashboard_filters.json --dry-run")
     print("  uv run python scripts/export_metabase.py --collection-id <root-collection-id>")
     return 0
 

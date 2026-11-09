@@ -159,6 +159,27 @@ For optional dashboard filters, leave it off.
 - **Field filters:** Question parameters connected to database fields. They
   are the best choice for dashboard filtering.
 
+### API filter pass
+
+Dashboard filters can also be created and mapped through the API with
+`scripts/add_dashboard_filters.py` and `metabase/dashboard_filters.json`. The
+dashboard parameter type controls the widget and SQL operator:
+
+| Filter | Dashboard `type` | `sectionId` |
+| --- | --- | --- |
+| Category dropdown | `string/=` | `string` |
+| Text contains | `string/contains` | `string` |
+| Boolean | `boolean/=` | `boolean` |
+| Number range | `number/between` | `number` |
+| Minimum number | `number/>=` | `number` |
+| Date | `date/all-options` | `date` |
+
+Field Filter tags map with
+`["dimension", ["template-tag", "tag"], {"stage-number": 0}]`. Plain Text
+variables map with `["variable", ["template-tag", "tag"]]` (exactly two
+elements). Full payloads and verification steps are in
+[Metabase API Provisioning](metabase-api-provisioning.md#dashboard-filters).
+
 ## Aliases and CTEs
 
 If the SQL aliases the table, for example:

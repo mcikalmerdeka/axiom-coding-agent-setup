@@ -6,8 +6,9 @@ missing items. Existing cards/dashboards are reused; cards listed with
 ``aliases`` are adopted and renamed. It is idempotent by name and never deletes
 unrelated content.
 
-Dashboard filters are intentionally not created; cards are built with Field
-Filter template tags so filters can be added in a later pass.
+Dashboard filters are not created here; the cards are built with Field Filter
+template tags so scripts/add_dashboard_filters.py can create and map the
+dashboard parameters in a second pass.
 
 Usage:
     uv run python scripts/seed_metabase.py --definitions metabase/definitions.json --dry-run
