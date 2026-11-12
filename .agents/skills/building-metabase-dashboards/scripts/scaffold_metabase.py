@@ -72,12 +72,12 @@ request.
 
 Edit `definitions.json`:
 
-- Set `root_collection_id` and `database_id` from the Metabase URLs/API.
+- Set `root_collection_name` and `database_name`; the seeder resolves IDs.
 - Add one dashboard object per dashboard.
 - Add one card object per question: name, description, display, SQL, tags,
   aliases, visualization settings, and full-width flag.
-- Resolve `schema.table.column` to numeric field IDs with
-  `GET /api/database/{id}/metadata`.
+- Tags use a portable `field` (`analytics.table.column`); add `alias`
+  (`table.column`) for BigQuery cards.
 
 The full schema is in the `building-metabase-dashboards` skill reference
 `metabase-api-provisioning.md`.
@@ -105,7 +105,7 @@ cards are filter-ready.
 
 Edit `dashboard_filters.json`:
 
-- Set `root_collection_id` to the same parent collection as `definitions.json`.
+- Set `root_collection_name` to the same parent collection as `definitions.json`.
 - Add one dashboard object per dashboard, with `collection` and `dashboard`
   names matching the live Metabase objects.
 - Add one filter per dashboard parameter: `name`, `slug`, `tag`, `type`,
@@ -128,7 +128,7 @@ from the live tag count.
 ## 5. Export the definitions to Git
 
 ```powershell
-uv run python scripts\\export_metabase.py --collection-id <root-collection-id>
+uv run python scripts\\export_metabase.py --collection-name "Analytics"
 ```
 
 Commit `metabase/export/`. The JSON contains collections, questions/models,
@@ -192,27 +192,26 @@ GITIGNORE = """# Metabase application-database dumps contain account data and se
 
 STARTER_DEFINITIONS = {
     "notes": [
-        "Replace root_collection_id and database_id with real values from Metabase.",
+        "Set root_collection_name and database_name to the live Metabase names.",
         "Add dashboards and cards. See references/metabase-api-provisioning.md.",
-        "Resolve field_id values from GET /api/database/{id}/metadata.",
+        "Tags use a portable field (analytics.table.column) plus alias for BigQuery.",
         "Run scripts/seed_metabase.py --dry-run before applying.",
     ],
-    "root_collection_id": 1,
     "root_collection_name": "Analytics",
-    "database_id": 1,
+    "database_name": "Analytics",
     "dashboards": [],
 }
 
 STARTER_FILTERS = {
     "notes": [
-        "Replace root_collection_id with the same parent collection as definitions.json.",
+        "Set root_collection_name to the same parent collection as definitions.json.",
         "Add one dashboard object per dashboard, with exact collection/dashboard names.",
         "Each filter needs name, slug, tag, type, section_id, values_query_type, and is_multi.",
         "expected_cards is an optional drift guard; exclude_cards skips specific cards.",
         "The tag must exist in the SQL of every card that should respond.",
         "Run scripts/add_dashboard_filters.py --dry-run before applying.",
     ],
-    "root_collection_id": 1,
+    "root_collection_name": "Analytics",
     "dashboards": [],
 }
 
@@ -269,7 +268,7 @@ def main() -> int:
     print("Next: edit metabase/definitions.json and metabase/dashboard_filters.json, then run:")
     print("  uv run python scripts/seed_metabase.py --definitions metabase/definitions.json --dry-run")
     print("  uv run python scripts/add_dashboard_filters.py --definitions metabase/dashboard_filters.json --dry-run")
-    print("  uv run python scripts/export_metabase.py --collection-id <root-collection-id>")
+    print('  uv run python scripts/export_metabase.py --collection-name "Analytics"')
     return 0
 
 

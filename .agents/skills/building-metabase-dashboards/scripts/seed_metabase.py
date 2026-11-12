@@ -1,19 +1,16 @@
 #!/usr/bin/env python3
-"""Create Metabase collections, questions, and dashboards from a definitions file.
+"""Create the documented Metabase collections, questions, and dashboards.
 
-The seeder reads a JSON definitions file and uses the Metabase API to create
-missing items. Existing cards/dashboards are reused; cards listed with
-``aliases`` are adopted and renamed. It is idempotent by name and never deletes
-unrelated content.
-
-Dashboard filters are not created here; the cards are built with Field Filter
-template tags so scripts/add_dashboard_filters.py can create and map the
-dashboard parameters in a second pass.
+Reads metabase/definitions.json and uses the Metabase API to create missing
+items against the live Metabase database (PostgreSQL or BigQuery). Existing
+cards/dashboards are reused and updated when their SQL or tags change.
+Dashboard filters are not created here; use scripts/add_dashboard_filters.py
+for those.
 
 Usage:
-    uv run python scripts/seed_metabase.py --definitions metabase/definitions.json --dry-run
-    uv run python scripts/seed_metabase.py --definitions ... --dashboard supply
-    uv run python scripts/seed_metabase.py --definitions ...
+    uv run python scripts/seed_metabase.py --dry-run
+    uv run python scripts/seed_metabase.py --dashboard supply
+    uv run python scripts/seed_metabase.py
 """
 
 from __future__ import annotations
@@ -29,8 +26,25 @@ import uuid
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_DEFINITIONS = PROJECT_ROOT / "metabase" / "definitions.json"
+DEFINITIONS = PROJECT_ROOT / "metabase" / "definitions.json"
+EXPORT_DASHBOARDS = PROJECT_ROOT / "metabase" / "export" / "dashboards"
+DEFAULT_DATABASE_NAME = "Airbnb Analytics"
 PAGE_SIZE = 200
+
+ALIASES = {
+    "KPI - Total Listings": ["Total Listings"],
+    "KPI - Median Nightly Price": ["Median Nightly Price"],
+    "KPI - Avg Nightly Price (excl. outliers)": ["Avg Nightly Price"],
+    "KPI - Outlier Listings": ["Outlier Listings"],
+}
+
+FULL_WIDTH = {
+    "Chart - Topic Mention Rate Trend",
+    "Table - Topic Detail",
+    "Table - Listing Detail",
+    "Table - Top Hosts",
+    "Table - Room Type Benchmark",
+}
 
 
 def load_dotenv(path: Path) -> None:
@@ -80,7 +94,7 @@ class MetabaseClient:
     def put(self, path: str, payload: dict):
         return self.request("PUT", path, payload)
 
-    def collection_items(self, collection_id: int, model: str) -> list[dict]:
+    def collection_items(self, collection_id: int | str, model: str) -> list[dict]:
         items: list[dict] = []
         offset = 0
         while True:
@@ -96,21 +110,84 @@ class MetabaseClient:
                 return items
 
 
-def build_card_payload(card: dict, collection_id: int, database_id: int) -> dict:
+def find_database(client: MetabaseClient, name: str) -> dict:
+    payload = client.get("/api/database")
+    databases = payload if isinstance(payload, list) else payload.get("data", [])
+    for database in databases:
+        if database.get("name") == name:
+            return database
+    raise RuntimeError(
+        f"Database {name!r} not found. Run scripts/setup_metabase.py first."
+    )
+
+
+def find_database_by_id(client: MetabaseClient, database_id: int) -> dict:
+    """Legacy fallback for definitions that still use database_id."""
+    payload = client.get("/api/database")
+    databases = payload if isinstance(payload, list) else payload.get("data", [])
+    for database in databases:
+        if database.get("id") == database_id:
+            return database
+    raise RuntimeError(f"Database id {database_id} not found.")
+
+
+def load_field_ids(client: MetabaseClient, database_id: int) -> dict[tuple[str, str, str], int]:
+    metadata = client.get(f"/api/database/{database_id}/metadata")
+    field_ids: dict[tuple[str, str, str], int] = {}
+    for table in metadata.get("tables", []):
+        schema = table.get("schema")
+        table_name = table.get("name")
+        for field in table.get("fields", []):
+            field_ids[(schema, table_name, field["name"])] = field["id"]
+    return field_ids
+
+
+def resolve_field_id(
+    field_ids: dict[tuple[str, str, str], int], card_name: str, tag_name: str, reference: str
+) -> int:
+    parts = reference.split(".", 2)
+    if len(parts) != 3:
+        raise RuntimeError(
+            f"Card {card_name!r} tag {tag_name!r} has invalid field reference {reference!r}"
+        )
+    schema, table, column = parts
+    key = (schema, table, column)
+    if key not in field_ids:
+        raise RuntimeError(
+            f"Card {card_name!r} tag {tag_name!r} requests missing field "
+            f"{schema}.{table}.{column}"
+        )
+    return field_ids[key]
+
+
+def build_card_payload(
+    card: dict,
+    collection_id: int,
+    database_id: int,
+    field_ids: dict[tuple[str, str, str], int],
+) -> dict:
     template_tags = []
     parameters = []
-    for tag in card.get("tags", []):
+    for tag in card["tags"]:
         tag_id = str(uuid.uuid4())
-        template_tags.append(
-            {
-                "id": tag_id,
-                "type": "dimension",
-                "widget-type": tag["widget_type"],
-                "name": tag["name"],
-                "display-name": tag["display_name"],
-                "dimension": ["field", {"lib/uuid": str(uuid.uuid4())}, tag["field_id"]],
-            }
-        )
+        if tag.get("field"):
+            field_id = resolve_field_id(
+                field_ids, card["name"], tag["name"], tag["field"]
+            )
+        else:
+            # Legacy definitions stored a raw field_id.
+            field_id = tag["field_id"]
+        template_tag = {
+            "id": tag_id,
+            "type": "dimension",
+            "widget-type": tag["widget_type"],
+            "name": tag["name"],
+            "display-name": tag["display_name"],
+            "dimension": ["field", {"lib/uuid": str(uuid.uuid4())}, field_id],
+        }
+        if tag.get("alias"):
+            template_tag["alias"] = tag["alias"]
+        template_tags.append(template_tag)
         parameters.append(
             {
                 "id": tag_id,
@@ -123,9 +200,9 @@ def build_card_payload(card: dict, collection_id: int, database_id: int) -> dict
         )
     return {
         "name": card["name"],
-        "description": card.get("description") or None,
+        "description": card["description"] or None,
         "collection_id": collection_id,
-        "display": card.get("display", "table"),
+        "display": card["display"],
         "dataset_query": {
             "database": database_id,
             "lib/type": "mbql/query",
@@ -137,23 +214,46 @@ def build_card_payload(card: dict, collection_id: int, database_id: int) -> dict
                 }
             ],
         },
-        "visualization_settings": card.get("visualization_settings", {}),
+        "visualization_settings": card["visualization_settings"],
         "parameters": parameters,
         "type": "question",
         "parameter_mappings": [],
     }
 
 
-def find_collection(client: MetabaseClient, parent_id: int, name: str) -> dict | None:
+def find_collection(client: MetabaseClient, parent_id: int | str, name: str) -> dict | None:
     for item in client.collection_items(parent_id, "collection"):
         if item.get("name") == name:
             return item
     return None
 
 
+def ensure_root_collection(
+    client: MetabaseClient, name: str, dry_run: bool
+) -> dict:
+    existing = find_collection(client, "root", name)
+    if existing:
+        print(f"root collection exists: {name} (id={existing['id']})")
+        return existing
+    print(f"root collection create: {name}")
+    if dry_run:
+        return {"id": -1, "name": name}
+    return client.post(
+        "/api/collection",
+        {
+            "name": name,
+            "description": "Airbnb analytics collections on BigQuery.",
+            "parent_id": None,
+        },
+    )
+
+
 def ensure_collection(
     client: MetabaseClient, parent_id: int, name: str, description: str, dry_run: bool
 ) -> dict:
+    if dry_run and parent_id < 0:
+        print(f"  collection create: {name}")
+        return {"id": -1, "name": name}
     existing = find_collection(client, parent_id, name)
     if existing:
         print(f"  collection exists: {name} (id={existing['id']})")
@@ -174,37 +274,76 @@ def find_card(client: MetabaseClient, collection_id: int, name: str) -> dict | N
     return None
 
 
+def tag_signature(tag: dict) -> tuple:
+    dimension = tag.get("dimension") or [None, None, None]
+    return (
+        tag.get("name"),
+        tag.get("type"),
+        tag.get("widget-type"),
+        tag.get("alias"),
+        dimension[2] if len(dimension) > 2 else None,
+    )
+
+
+def card_needs_update(existing: dict, desired: dict) -> bool:
+    existing_stage = (existing.get("dataset_query") or {}).get("stages", [{}])[0]
+    desired_stage = desired["dataset_query"]["stages"][0]
+    existing_tags = sorted(
+        (tag_signature(tag) for tag in existing_stage.get("template-tags", [])),
+        key=str,
+    )
+    desired_tags = sorted(
+        (tag_signature(tag) for tag in desired_stage.get("template-tags", [])),
+        key=str,
+    )
+    return (
+        existing_stage.get("native") != desired_stage.get("native")
+        or existing_tags != desired_tags
+        or existing.get("display") != desired.get("display")
+    )
+
+
 def resolve_card(
     client: MetabaseClient,
     collection_id: int,
     card: dict,
-    database_id: int,
     dry_run: bool,
+    database_id: int,
+    field_ids: dict[tuple[str, str, str], int],
 ) -> dict:
-    if collection_id > 0:
-        existing = find_card(client, collection_id, card["name"])
-        if existing:
-            print(f"    card exists: {card['name']} (id={existing['id']})")
-            return {**existing, "name": card["name"], "display": card.get("display", "table")}
+    if dry_run and collection_id < 0:
+        print(f"    card create: {card['name']}")
+        return {"id": -1, "name": card["name"], "display": card["display"]}
 
-        for alias in card.get("aliases", []):
-            existing = find_card(client, collection_id, alias)
-            if existing:
-                print(f"    card adopt: {alias!r} -> {card['name']!r} (id={existing['id']})")
-                if not dry_run:
-                    payload = build_card_payload(card, collection_id, database_id)
-                    payload.pop("collection_id", None)
-                    client.put(f"/api/card/{existing['id']}", payload)
-                return {
-                    **existing,
-                    "name": card["name"],
-                    "display": card.get("display", "table"),
-                }
+    existing = find_card(client, collection_id, card["name"])
+    if existing:
+        desired = build_card_payload(card, collection_id, database_id, field_ids)
+        detail = client.get(f"/api/card/{existing['id']}")
+        if card_needs_update(detail, desired):
+            print(f"    card update: {card['name']} (id={existing['id']})")
+            if not dry_run:
+                client.put(f"/api/card/{existing['id']}", desired)
+        else:
+            print(f"    card exists: {card['name']} (id={existing['id']})")
+        return {**existing, "name": card["name"], "display": card["display"]}
+
+    for alias in ALIASES.get(card["name"], []):
+        existing = find_card(client, collection_id, alias)
+        if existing:
+            print(f"    card adopt: {alias!r} -> {card['name']!r} (id={existing['id']})")
+            if not dry_run:
+                payload = build_card_payload(card, collection_id, database_id, field_ids)
+                payload.pop("collection_id", None)
+                client.put(f"/api/card/{existing['id']}", payload)
+            return {**existing, "name": card["name"], "display": card["display"]}
 
     print(f"    card create: {card['name']}")
     if dry_run:
-        return {"id": -1, "name": card["name"], "display": card.get("display", "table")}
-    return client.post("/api/card", build_card_payload(card, collection_id, database_id))
+        return {"id": -1, "name": card["name"], "display": card["display"]}
+    created = client.post(
+        "/api/card", build_card_payload(card, collection_id, database_id, field_ids)
+    )
+    return created
 
 
 def find_dashboard(client: MetabaseClient, collection_id: int, name: str) -> dict | None:
@@ -217,11 +356,13 @@ def find_dashboard(client: MetabaseClient, collection_id: int, name: str) -> dic
 def ensure_dashboard(
     client: MetabaseClient, collection_id: int, meta: dict, dry_run: bool
 ) -> dict:
-    if collection_id > 0:
-        existing = find_dashboard(client, collection_id, meta["dashboard"])
-        if existing:
-            print(f"  dashboard exists: {meta['dashboard']} (id={existing['id']})")
-            return existing
+    if dry_run and collection_id < 0:
+        print(f"  dashboard create: {meta['dashboard']}")
+        return {"id": -1, "name": meta["dashboard"], "dashcards": []}
+    existing = find_dashboard(client, collection_id, meta["dashboard"])
+    if existing:
+        print(f"  dashboard exists: {meta['dashboard']} (id={existing['id']})")
+        return existing
     print(f"  dashboard create: {meta['dashboard']}")
     if dry_run:
         return {"id": -1, "name": meta["dashboard"], "dashcards": []}
@@ -229,14 +370,40 @@ def ensure_dashboard(
         "/api/dashboard",
         {
             "name": meta["dashboard"],
-            "description": meta.get("description") or None,
+            "description": meta["description"],
             "collection_id": collection_id,
             "parameters": [],
         },
     )
 
 
-def layout(cards: list[dict]) -> list[tuple[int, int, int, int]]:
+def load_layouts() -> dict[str, dict[str, dict]]:
+    """Return dashboard name -> card name -> exported dashcard layout."""
+    layouts: dict[str, dict[str, dict]] = {}
+    for path in sorted(EXPORT_DASHBOARDS.glob("*.json")):
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        layouts[payload["name"]] = {
+            dashcard["card_name"]: dashcard
+            for dashcard in payload.get("dashcards", [])
+            if dashcard.get("card_name")
+        }
+    return layouts
+
+
+def dashboard_layout(layouts: dict[str, dict[str, dict]], dashboard: dict) -> dict[str, dict]:
+    name = dashboard["dashboard"]
+    if name not in layouts:
+        raise RuntimeError(f"No layout export found for dashboard {name!r}")
+    layout = layouts[name]
+    for card in dashboard["cards"]:
+        if card["name"] not in layout:
+            raise RuntimeError(
+                f"Dashboard {name!r} layout is missing card {card['name']!r}"
+            )
+    return layout
+
+
+def fallback_positions(cards: list[dict]) -> list[tuple[int, int, int, int]]:
     positions = []
     row = 0
     col = 0
@@ -247,9 +414,9 @@ def layout(cards: list[dict]) -> list[tuple[int, int, int, int]]:
             width = [5, 5, 5, 5, 4][kpi_index] if kpi_index < 5 else 4
             height = 3
             kpi_index += 1
-        elif card.get("display") == "table" or card.get("full_width"):
+        elif card["display"] == "table" or card["name"] in FULL_WIDTH:
             width = 24
-            height = 7 if card.get("display") == "table" else 6
+            height = 7 if card["display"] == "table" else 6
         else:
             width = 12
             height = 6
@@ -272,6 +439,7 @@ def populate_dashboard(
     client: MetabaseClient,
     dashboard_id: int,
     cards: list[dict],
+    layout: dict[str, dict] | None,
     dry_run: bool,
     force_layout: bool = False,
 ) -> None:
@@ -288,41 +456,36 @@ def populate_dashboard(
         print(f"    dashboard {dashboard_id}: all {len(cards)} cards already present; layout left untouched")
         return
 
-    positions = layout(cards)
+    if layout:
+        entries = [layout[card["name"]] for card in cards]
+    else:
+        entries = [
+            {"row": row, "col": col, "size_x": width, "size_y": height}
+            for (row, col, width, height) in fallback_positions(cards)
+        ]
+
     payload_cards = []
     next_negative = -1
-    for card, (row, col, size_x, size_y) in zip(cards, positions):
+    for card, entry in zip(cards, entries):
         existing = existing_dashcards.get(card.get("id"))
-        if existing:
-            payload_cards.append(
-                {
-                    "id": existing["id"],
-                    "card_id": card["id"],
-                    "row": row,
-                    "col": col,
-                    "size_x": size_x,
-                    "size_y": size_y,
-                    "parameter_mappings": existing.get("parameter_mappings", []),
-                    "visualization_settings": existing.get("visualization_settings", {}),
-                    "inline_parameters": existing.get("inline_parameters", []),
-                }
-            )
-        else:
-            payload_cards.append(
-                {
-                    "id": next_negative,
-                    "card_id": card["id"],
-                    "row": row,
-                    "col": col,
-                    "size_x": size_x,
-                    "size_y": size_y,
-                    "parameter_mappings": [],
-                    "visualization_settings": {},
-                    "inline_parameters": [],
-                }
-            )
+        dashcard = {
+            "id": existing["id"] if existing else next_negative,
+            "card_id": card["id"],
+            "row": entry.get("row", 0),
+            "col": entry.get("col", 0),
+            "size_x": entry.get("size_x", 12),
+            "size_y": entry.get("size_y", 6),
+            "parameter_mappings": existing.get("parameter_mappings", []) if existing else [],
+            "visualization_settings": entry.get("visualization_settings", {}),
+            "inline_parameters": existing.get("inline_parameters", []) if existing else [],
+        }
+        if entry.get("dashboard_tab_id") is not None:
+            dashcard["dashboard_tab_id"] = entry["dashboard_tab_id"]
+        if not existing:
             next_negative -= 1
+        payload_cards.append(dashcard)
 
+    # Preserve any existing dashboard cards that are not part of this definition.
     for card_id, dashcard in existing_dashcards.items():
         if card_id not in target_card_ids:
             payload_cards.append(
@@ -355,13 +518,12 @@ def main() -> int:
     parser.add_argument(
         "--definitions",
         type=Path,
-        default=DEFAULT_DEFINITIONS,
-        help=f"Definitions JSON (default: {DEFAULT_DEFINITIONS})",
+        default=DEFINITIONS,
+        help=f"Definitions JSON (default: {DEFINITIONS})",
     )
-    parser.add_argument("--dashboard", help="Only seed one dashboard key")
-    parser.add_argument("--root-collection-id", type=int, help="Override root_collection_id")
+    parser.add_argument("--dashboard", help="Only seed one dashboard key (executive, supply, guest, host, listing)")
     parser.add_argument("--dry-run", action="store_true", help="Print actions without writing")
-    parser.add_argument("--relayout", action="store_true", help="Reposition all cards even if present")
+    parser.add_argument("--relayout", action="store_true", help="Reposition all cards even if they are already present")
     args = parser.parse_args()
 
     load_dotenv(PROJECT_ROOT / ".env")
@@ -375,13 +537,17 @@ def main() -> int:
     if not definitions_path.is_absolute():
         definitions_path = PROJECT_ROOT / definitions_path
     definitions = json.loads(definitions_path.read_text(encoding="utf-8"))
-    root_id = args.root_collection_id or definitions.get("root_collection_id")
-    database_id = definitions.get("database_id")
-    if not root_id or not database_id:
-        print("Definitions must provide root_collection_id and database_id.", file=sys.stderr)
-        return 2
-
     client = MetabaseClient(base_url, api_key)
+    database_name = definitions.get("database_name")
+    if database_name:
+        database = find_database(client, database_name)
+    elif definitions.get("database_id"):
+        database = find_database_by_id(client, definitions["database_id"])
+    else:
+        database = find_database(client, DEFAULT_DATABASE_NAME)
+    field_ids = load_field_ids(client, database["id"])
+    layouts = load_layouts()
+
     selected = [
         dashboard
         for dashboard in definitions["dashboards"]
@@ -389,11 +555,27 @@ def main() -> int:
         and not dashboard.get("skip", False)
     ]
     if not selected:
-        print(f"No dashboard matched {args.dashboard!r}.", file=sys.stderr)
+        print(f"No dashboard matched {args.dashboard!r}.")
         return 2
 
+    root_name = definitions.get("root_collection_name")
+    if root_name:
+        root = ensure_root_collection(client, root_name, args.dry_run)
+        root_id = root["id"]
+    else:
+        # Legacy definitions provided an existing collection ID.
+        root_id = definitions["root_collection_id"]
+
+    collection_count = 1  # root collection
+    card_count = 0
+    dashboard_count = 0
     for dashboard in selected:
         print(f"\n[{dashboard['key']}] {dashboard['dashboard']}")
+        layout = layouts.get(dashboard["dashboard"])
+        if layout:
+            dashboard_layout(layouts, dashboard)  # validate every card has a slot
+        else:
+            print("  no exported layout found; using the generated grid")
         collection = ensure_collection(
             client,
             root_id,
@@ -401,20 +583,31 @@ def main() -> int:
             f"Questions and dashboard for {dashboard['dashboard']}.",
             args.dry_run,
         )
+        collection_count += 1
         collection_id = collection["id"]
 
         cards = []
         for card in dashboard["cards"]:
             resolved = resolve_card(
-                client, collection_id, card, database_id, args.dry_run
+                client, collection_id, card, args.dry_run, database["id"], field_ids
             )
-            resolved["full_width"] = card.get("full_width", False)
-            cards.append(resolved)
+            if resolved:
+                cards.append(resolved)
+                card_count += 1
+
+        if args.dry_run:
+            print(f"  dashboard would be ensured: {dashboard['dashboard']}")
+            dashboard_count += 1
+            continue
 
         dash = ensure_dashboard(client, collection_id, dashboard, args.dry_run)
-        populate_dashboard(client, dash["id"], cards, args.dry_run, args.relayout)
+        populate_dashboard(client, dash["id"], cards, layout, args.dry_run, args.relayout)
+        dashboard_count += 1
 
-    print("\nDone.")
+    print(
+        f"\nDone. collections={collection_count} cards={card_count} "
+        f"dashboards={dashboard_count} database={database['id']}"
+    )
     return 0
 
 

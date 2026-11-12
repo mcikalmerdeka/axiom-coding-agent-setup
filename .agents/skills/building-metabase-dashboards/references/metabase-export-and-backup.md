@@ -31,7 +31,7 @@ private.
 Use the bundled `scripts/export_metabase.py` or implement the same shape.
 
 ```powershell
-uv run python scripts\export_metabase.py --collection-id 5
+uv run python scripts\export_metabase.py --collection-name "Airbnb Analytics"
 ```
 
 The script:
@@ -59,7 +59,7 @@ Manifest:
 {
   "exported_at": "2026-11-06T07:26:23+00:00",
   "metabase_version": "v0.64.3.5",
-  "root_collection_id": 5,
+  "root_collection_id": 7,
   "root_collection_name": "Airbnb Analytics",
   "counts": {"collections": 6, "cards": 66, "dashboards": 5},
   "files": { "...": [] }
@@ -94,7 +94,9 @@ Manifest:
 ## Full application-database backup
 
 Use this for an exact restore. It works while Metabase is running when the app
-DB is PostgreSQL or MySQL.
+DB is PostgreSQL or MySQL. The warehouse may be PostgreSQL or BigQuery; the
+application-database backup/restore workflow is identical because Metabase
+stores its own metadata locally.
 
 ### Docker Compose example
 

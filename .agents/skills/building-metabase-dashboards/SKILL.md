@@ -1,10 +1,10 @@
 ---
 name: building-metabase-dashboards
-description: Use when building, bulk-provisioning, filtering, versioning, or backing up the Airbnb Berlin Metabase dashboards, including collections, native SQL cards, Field Filters, dashboard filters, API seeding, Git-friendly JSON export, and application-database backup/restore.
-compatibility: Requires a running Metabase 0.64+ connected to PostgreSQL. Provisioning and export need an admin API key. Docker/PostgreSQL installation and ETL are out of scope; application-database backup is in scope.
+description: Use when building, bulk-provisioning, filtering, versioning, or backing up the Airbnb Berlin Metabase dashboards on PostgreSQL or Google BigQuery, including collections, native SQL cards, Field Filters, dashboard filters, API seeding, Git-friendly JSON export, and application-database backup/restore.
+compatibility: Requires a running Metabase 0.64+ connected to PostgreSQL or Google BigQuery. Provisioning and export need an admin API key. Warehouse installation and ETL are out of scope; application-database backup is in scope.
 metadata:
   author: axiom
-  version: "2.0"
+  version: "3.0"
 ---
 
 # Building Metabase Dashboards
@@ -22,16 +22,41 @@ multi-dashboard builds, reruns, and repeatable delivery. Export after every
 definition change; back up before upgrades, resets, and bulk writes.
 
 The bundled references use the Airbnb Berlin project as the single worked
-example: 5 dashboards, 66 cards, the `analytics` schema, and the full filter
-map. The API and persistence references use the same project.
+example: 5 dashboards, 66 cards, the `analytics` schema/dataset, and the full
+filter map. The API and persistence references use the same project.
 
-Assume Metabase and the database are running. **Do not include Docker,
-PostgreSQL installation, or ETL setup in the plan.** Application-database backup
-is in scope; installing the database is not.
+Assume Metabase and the warehouse are running. **Do not include warehouse
+installation or ETL setup in the plan.** Application-database backup is in
+scope; installing the warehouse is not.
 
 UI labels in this skill are from Metabase 0.64.x. Newer versions may rename
 controls, but the concepts (Field Filter, variable mapping, dashboard filter
 type) are the same.
+
+## Warehouse profiles
+
+The workflow is identical across warehouses. Pick **one** profile and use its
+SQL dialect and connection settings consistently; do not mix Postgres and
+GoogleSQL in one card.
+
+| Concern | PostgreSQL | Google BigQuery |
+| --- | --- | --- |
+| Metabase engine | `postgres` | `bigquery-cloud-sdk` (not `bigquery`) |
+| Connection | host, port, database, user | project ID, service-account JSON, dataset filter `inclusion` for `analytics` |
+| Namespace | schema `analytics` | dataset `analytics` |
+| dbt adapter | `dbt-postgres` | `dbt-bigquery` |
+| Field Filter aliases | optional when SQL is unaliased | **required**: `FROM analytics.t AS t` and tag alias `t.column` |
+| SQL dialect | PostgreSQL | GoogleSQL: `COUNTIF`, `SAFE_DIVIDE`, `PERCENTILE_CONT(...) OVER (...)`, `DATE_TRUNC(date, MONTH)` |
+| Reader security | reporting role/grants | dataset `READER` on `analytics` + project `jobUser`; no project `metadataViewer` |
+| Cost controls | none | budget alert, daily query quota, `maximum_bytes_billed` |
+| Full reference | [SQL reference](references/dashboard-sql-with-filters.md) | [BigQuery workspace](references/bigquery-workspace.md) |
+
+**BigQuery Field Filter rule:** Metabase renders a Field Filter as
+`alias.column`. If the table is unaliased, the driver emits the dataset path as
+one quoted identifier and BigQuery rejects it. Every BigQuery native card must
+alias its table, and every tag must store the full `alias.column` (for example
+SQL `FROM analytics.dim_listings AS dim_listings`, tag alias
+`dim_listings.room_type`).
 
 ## When to use
 
@@ -46,13 +71,14 @@ Use this skill when:
 - The user needs to save, version, export, or back up Metabase content.
 - The user needs an exact restore path for the Metabase application database.
 
-Do not use this skill for Docker/PostgreSQL setup, data cleaning, ETL, or
+Do not use this skill for warehouse installation, data cleaning, ETL, or
 database schema design. Application-database backup/restore is in scope.
 
 ## Preconditions
 
 - Metabase is running and reachable.
-- The database connection already exists in Metabase.
+- The warehouse connection exists in Metabase (or provision it per the chosen
+  warehouse profile).
 - An analysis-ready table or model exists.
 - You know the table grain (for example, one row per listing, host, or review).
 - You know which columns should become filters and whether they are text,
@@ -98,8 +124,8 @@ pre-aggregated benchmarks. The full source map is in
 
 ## Build sequence
 
-1. **Inspect the schema.** Confirm the grain, key columns, filter columns, and
-   expected unfiltered totals.
+1. **Inspect the schema/dataset.** Confirm the grain, key columns, filter
+   columns, and expected unfiltered totals.
 2. **Choose the path.** Manual UI for one dashboard; API seeder for a repeatable
    multi-dashboard build. Use the table above.
 3. **Create the collection/model.** Point the model at the analysis-ready table;
@@ -152,8 +178,8 @@ Rules:
 - The API key must be in `.env`; never in the definitions file.
 - The bundled seeder creates native SQL cards. Create query-builder cards in
   the UI, or extend the definitions schema with MBQL.
-- Resolve `schema.table.column` to numeric field IDs from
-  `GET /api/database/{id}/metadata`. Field IDs are instance-local.
+- Store `schema.table.column` in definitions; resolve numeric field IDs from
+  `GET /api/database/{id}/metadata` at seed time. Field IDs are instance-local.
 - Native SQL cards use `WHERE {{filter}}` Field Filter tags, never
   `column = {{filter}}` or quoted variables.
 - Match by exact name within a collection. Use `aliases` to adopt partial work;
@@ -194,7 +220,7 @@ Detailed payloads and gotchas:
 | Native YAML import | Pro/Enterprise serialization | Yes | Yes (paid) |
 
 ```powershell
-uv run python scripts\export_metabase.py --collection-id 5
+uv run python scripts\export_metabase.py --collection-name "Airbnb Analytics"
 .\scripts\backup_metabase.ps1
 .\scripts\restore_metabase.ps1 -DumpFile .\metabase\backups\metabase_20261106_142757.dump
 ```
@@ -333,9 +359,35 @@ single-value (True/False).
 A filter only affects cards where it is mapped. If a native SQL card has no
 matching variable, it cannot be mapped and will ignore the filter.
 
+## BigQuery native SQL recipe
+
+Minimum working shape for a filterable BigQuery card:
+
+```sql
+SELECT COUNT(*) AS total_listings
+FROM analytics.dim_listings AS dim_listings
+WHERE 1 = 1
+  AND {{room_type}}
+  AND {{is_superhost}};
+```
+
+- Engine: `bigquery-cloud-sdk`.
+- Table alias in SQL: `AS dim_listings`.
+- Tag alias: full column reference, `dim_listings.room_type`.
+- Do not use engine `bigquery`; Metabase 0.64 rejects it.
+- Service account: dataset `READER` on `analytics` + project `jobUser`.
+  Never project `metadataViewer`.
+
+Seeded definitions should store `field` (for example
+`analytics.dim_listings.room_type`) and `alias`
+(`dim_listings.room_type`); resolve the numeric field ID at seed time. Full
+rules, SQL conversion table, and error catalogue:
+[BigQuery workspace](references/bigquery-workspace.md).
+
 ## Aliases and CTEs
 
-- The filterable SQL in this project avoids table aliases wherever possible.
+- PostgreSQL cards may be unaliased; BigQuery cards **must** alias every table
+  used by a Field Filter.
 - The one joined card is Guest Experience `Chart - Reviews by Room Type`:
   `analytics.fct_reviews AS r` joined to `analytics.dim_listings AS l`.
   Set **Table and field alias** for each filter: `r.review_date`,
@@ -343,8 +395,8 @@ matching variable, it cannot be mapped and will ignore the filter.
 - If you add a join, apply the same rule: alias plus column.
 - If a card's source does not contain the filter field, join the table or leave
   the card unfiltered. Do not map a field from a table that is not in the query.
-- The API seeder prefers unaliased SQL; if a definition includes a join, use the
-  alias form or rewrite the SQL unaliased.
+- The API seeder stores an `alias` on each tag when the definition provides one;
+  for BigQuery, always provide it.
 
 ## Common mistakes
 
@@ -374,6 +426,13 @@ matching variable, it cannot be mapped and will ignore the filter.
   the first write and before a rerun that updates existing cards.
 - Hardcoding field IDs and reusing them across Metabase instances. Field IDs are
   instance-local; resolve them from `/api/database/{id}/metadata`.
+- Using engine `bigquery` instead of `bigquery-cloud-sdk` in Metabase 0.64.
+- Building BigQuery cards without table aliases; Field Filters fail with
+  `Unrecognized name: \`analytics.table\``.
+- Setting a BigQuery tag alias to only the table name instead of
+  `table.column`; the filter compares a whole row STRUCT to a scalar.
+- Granting the Metabase service account project-level `metadataViewer`; it can
+  enumerate tables outside the BI dataset.
 - Matching cards by name globally. Match by name **within the target
   collection**, and use `aliases` for partial work.
 - Creating new dashboard cards with positive IDs. Use negative IDs for new
@@ -497,8 +556,13 @@ UI/parameter references; the last two cover the API and persistence paths.
   manual build guide: five dashboards, 66 cards, question descriptions, expected
   values, layouts, filters, and gotchas.
 - [Dashboard SQL with Field Filters](references/dashboard-sql-with-filters.md) —
-  Airbnb native SQL for all 66 cards: per-dashboard variables, per-card filter
-  availability, alias settings, troubleshooting, and verification.
+  Airbnb **PostgreSQL** native SQL for all 66 cards: per-dashboard variables,
+  per-card filter availability, alias settings, troubleshooting, and
+  verification.
+- [BigQuery Workspace](references/bigquery-workspace.md) —
+  BigQuery connection engine, service-account IAM, GoogleSQL conversion, exact
+  medians, date types, RE2/Unicode boundaries, Field Filter aliases, cost
+  guardrails, and error catalogue.
 - [Metabase Parameter Types Reference](references/Metabase_Parameter_Types_Reference.md) —
   basic variables, optional variables, Field Filters, aliases, boolean fields,
   and exact error explanations, using Airbnb examples.
@@ -525,9 +589,11 @@ Bundled tools:
 - `assets/dashboard_filters.example.json` — dashboard filter schema, with the
   full Airbnb filter map.
 
-Maintenance: the first two references mirror the Airbnb
-`Postgres Version/docs/METABASE_DASHBOARDS.md` and
-`METABASE_SQL_WITH_FILTERS.md` files; re-copy them if those change. The
-parameter reference uses Airbnb examples; the API and persistence references
-are skill-owned and should be updated when the API payloads change. The filter
-example mirrors `Postgres Version/metabase/dashboard_filters.json`.
+Maintenance: the Postgres SQL reference mirrors
+`Postgres Version/docs/METABASE_SQL_WITH_FILTERS.md`; the BigQuery workspace
+mirrors the proven `BigQuery Version/docs/METABASE_SQL_WITH_FILTERS.md` and
+`RUNBOOK.md`. Re-copy or re-verify both after a warehouse port. The parameter
+reference uses Airbnb examples; the API and persistence references are
+skill-owned and should be updated when the API payloads change. The filter
+example mirrors `Postgres Version/metabase/dashboard_filters.json` with a
+BigQuery variant noted inline.

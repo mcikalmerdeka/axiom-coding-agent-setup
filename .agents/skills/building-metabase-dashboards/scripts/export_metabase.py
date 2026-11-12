@@ -1,18 +1,19 @@
 #!/usr/bin/env python3
-"""Export a Metabase collection tree to Git-friendly JSON.
+"""Export the Airbnb Analytics Metabase collection to Git-friendly JSON.
 
 The exporter reads METABASE_URL and METABASE_API_KEY from the project .env or
 the process environment, walks the root collection and its subcollections, and
 writes one JSON file per collection, question/model, and dashboard.
 
-It is read-only: it never creates, updates, or deletes anything in Metabase.
-Volatile fields (timestamps, view counts, last-editor identity, public sharing
-tokens, permission flags) are removed so the files diff cleanly in Git. The
-export is for versioning and review, not an application-database backup.
+It is intentionally read-only: it never creates, updates, or deletes anything
+in Metabase. Volatile fields (timestamps, view counts, last-editor identity,
+public sharing tokens, permissions) are removed so the files diff cleanly in
+Git. The export is for versioning and review, not a database backup.
 
 Usage:
-    uv run python scripts/export_metabase.py --collection-id 5
-    METABASE_ROOT_COLLECTION_ID=5 uv run python scripts/export_metabase.py
+    uv run python scripts/export_metabase.py
+    uv run python scripts/export_metabase.py --collection-name "Airbnb Analytics"
+    uv run python scripts/export_metabase.py --collection-name "Airbnb Analytics" --output metabase/export
 """
 
 from __future__ import annotations
@@ -31,6 +32,7 @@ from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_OUTPUT = PROJECT_ROOT / "metabase" / "export"
+DEFAULT_COLLECTION_NAME = "Airbnb Analytics"
 PAGE_SIZE = 200
 
 CARD_FIELDS = (
@@ -100,7 +102,9 @@ def load_dotenv(path: Path) -> None:
         if not line or line.startswith("#") or "=" not in line:
             continue
         key, value = line.split("=", 1)
-        os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
+        key = key.strip()
+        value = value.strip().strip('"').strip("'")
+        os.environ.setdefault(key, value)
 
 
 def slugify(value: str, fallback: str) -> str:
@@ -127,7 +131,7 @@ class MetabaseClient:
         except urllib.error.URLError as exc:
             raise RuntimeError(f"GET {path} failed: {exc.reason}") from exc
 
-    def collection_items(self, collection_id: int, include_archived: bool) -> list[dict]:
+    def collection_items(self, collection_id: int | str, include_archived: bool) -> list[dict]:
         items: list[dict] = []
         offset = 0
         while True:
@@ -149,6 +153,13 @@ class MetabaseClient:
             total = payload.get("total")
             if not data or total is None or offset >= total:
                 return items
+
+
+def find_top_level_collection(client: MetabaseClient, name: str) -> dict:
+    for item in client.collection_items("root", include_archived=False):
+        if item.get("model") == "collection" and item.get("name") == name:
+            return item
+    raise RuntimeError(f"Top-level collection not found: {name}")
 
 
 def clean_card(card: dict) -> dict:
@@ -199,7 +210,12 @@ def main() -> int:
         "--collection-id",
         type=int,
         default=None,
-        help="Root collection ID (or set METABASE_ROOT_COLLECTION_ID)",
+        help="Root collection ID (overrides --collection-name)",
+    )
+    parser.add_argument(
+        "--collection-name",
+        default=DEFAULT_COLLECTION_NAME,
+        help=f"Root collection name (default: {DEFAULT_COLLECTION_NAME})",
     )
     parser.add_argument(
         "--output",
@@ -227,20 +243,13 @@ def main() -> int:
         )
         return 2
 
-    collection_id = args.collection_id
-    if collection_id is None:
-        raw = os.environ.get("METABASE_ROOT_COLLECTION_ID", "").strip()
-        collection_id = int(raw) if raw.isdigit() else None
-    if not collection_id:
-        print(
-            "Pass --collection-id or set METABASE_ROOT_COLLECTION_ID to the root "
-            "collection you want to export.",
-            file=sys.stderr,
-        )
-        return 2
-
     client = MetabaseClient(base_url, api_key)
     try:
+        if args.collection_id is None:
+            root_item = find_top_level_collection(client, args.collection_name)
+            collection_id = root_item["id"]
+        else:
+            collection_id = args.collection_id
         properties = client.get("/api/session/properties")
         root_collection = client.get(f"/api/collection/{collection_id}")
     except RuntimeError as exc:
@@ -261,13 +270,13 @@ def main() -> int:
     visited: set[int] = set()
 
     while queue:
-        current_id = queue.pop(0)
-        if current_id in visited:
+        collection_id = queue.pop(0)
+        if collection_id in visited:
             continue
-        visited.add(current_id)
-        collection = client.get(f"/api/collection/{current_id}")
+        visited.add(collection_id)
+        collection = client.get(f"/api/collection/{collection_id}")
         collections.append(collection)
-        for item in client.collection_items(current_id, args.include_archived):
+        for item in client.collection_items(collection_id, args.include_archived):
             model = item.get("model")
             item_id = item.get("id")
             if item_id is None:

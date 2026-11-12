@@ -10,8 +10,14 @@ five dashboards as **native SQL questions** instead of query-builder cards.
 > application-database backup see
 > [`metabase-export-and-backup.md`](metabase-export-and-backup.md).
 
-Every SQL block below is written for Metabase v0.64.x and PostgreSQL 17. The
-values and filter columns match the `analytics` schema in this project.
+Every SQL block below is written for Metabase v0.64.x and **PostgreSQL 17**.
+The values and filter columns match the `analytics` schema in this project.
+
+> **Using BigQuery instead?** Do not paste these blocks into a BigQuery
+> connection. Use [`bigquery-workspace.md`](bigquery-workspace.md) for the
+> GoogleSQL conversion rules, and make every card alias its table plus store the
+> full `table.column` alias on each Field Filter tag. The same 66-card BigQuery
+> SQL lives in `BigQuery Version/docs/METABASE_SQL_WITH_FILTERS.md`.
 
 The matching question descriptions are in
 [`dashboard-build-guide.md`](dashboard-build-guide.md). Use those in the

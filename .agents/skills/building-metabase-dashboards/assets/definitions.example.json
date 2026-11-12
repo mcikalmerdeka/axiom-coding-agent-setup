@@ -1,13 +1,12 @@
 {
   "notes": [
     "Example schema for scripts/seed_metabase.py using the Airbnb Berlin project.",
-    "Dashboard filters are defined separately in dashboard_filters.example.json and applied by scripts/add_dashboard_filters.py.",
-    "Replace root_collection_id, database_id, SQL table names, and field_id values if your instance differs.",
-    "Field IDs come from GET /api/database/{id}/metadata."
+    "Definitions are portable across Metabase instances: use collection names, database names, and schema.table.column field references.",
+    "On BigQuery, alias every table and set each tag alias to the full table.column.",
+    "Dashboard filters are defined separately in dashboard_filters.example.json."
   ],
-  "root_collection_id": 5,
   "root_collection_name": "Airbnb Analytics",
-  "database_id": 2,
+  "database_name": "Airbnb Analytics",
   "dashboards": [
     {
       "key": "supply",
@@ -21,35 +20,40 @@
           "name": "KPI - Total Listings",
           "description": "Count of listings matching the selected Supply filters. One row per listing; use this as the denominator for supply shares on this dashboard.",
           "display": "scalar",
-          "sql": "SELECT COUNT(*) AS total_listings\nFROM analytics.dim_listings\nWHERE 1 = 1\n  AND {{room_type}}\n  AND {{price_band}}\n  AND {{minimum_nights_band}}\n  AND {{is_superhost}}\n  AND {{price}};",
+          "sql": "SELECT COUNT(*) AS total_listings\nFROM analytics.dim_listings AS dim_listings\nWHERE 1 = 1\n  AND {{room_type}}\n  AND {{price_band}}\n  AND {{minimum_nights_band}}\n  AND {{is_superhost}}\n  AND {{price}};",
           "tags": [
             {
               "name": "room_type",
-              "field_id": 95,
+              "field": "analytics.dim_listings.room_type",
+              "alias": "dim_listings.room_type",
               "widget_type": "string/=",
               "display_name": "Room Type"
             },
             {
               "name": "price_band",
-              "field_id": 97,
+              "field": "analytics.dim_listings.price_band",
+              "alias": "dim_listings.price_band",
               "widget_type": "string/=",
               "display_name": "Price Band"
             },
             {
               "name": "minimum_nights_band",
-              "field_id": 100,
+              "field": "analytics.dim_listings.minimum_nights_band",
+              "alias": "dim_listings.minimum_nights_band",
               "widget_type": "string/=",
               "display_name": "Minimum Nights Band"
             },
             {
               "name": "is_superhost",
-              "field_id": 103,
+              "field": "analytics.dim_listings.is_superhost",
+              "alias": "dim_listings.is_superhost",
               "widget_type": "boolean/=",
               "display_name": "Is Superhost"
             },
             {
               "name": "price",
-              "field_id": 96,
+              "field": "analytics.dim_listings.price",
+              "alias": "dim_listings.price",
               "widget_type": "number/=",
               "display_name": "Price"
             }
@@ -65,35 +69,40 @@
           "name": "Chart - Listings by Price Band",
           "description": "Listings by derived price band, in band order. One row per listing; the chart collapses to one bar when the Price band filter is applied.",
           "display": "bar",
-          "sql": "SELECT\n    price_band,\n    COUNT(*) AS listings\nFROM analytics.dim_listings\nWHERE 1 = 1\n  AND {{room_type}}\n  AND {{price_band}}\n  AND {{minimum_nights_band}}\n  AND {{is_superhost}}\n  AND {{price}}\nGROUP BY price_band\nORDER BY CASE price_band\n    WHEN '<30' THEN 1\n    WHEN '30-49' THEN 2\n    WHEN '50-74' THEN 3\n    WHEN '75-99' THEN 4\n    WHEN '100-149' THEN 5\n    WHEN '150-249' THEN 6\n    ELSE 7\nEND;",
+          "sql": "SELECT\n    price_band,\n    COUNT(*) AS listings\nFROM analytics.dim_listings AS dim_listings\nWHERE 1 = 1\n  AND {{room_type}}\n  AND {{price_band}}\n  AND {{minimum_nights_band}}\n  AND {{is_superhost}}\n  AND {{price}}\nGROUP BY price_band\nORDER BY CASE price_band\n    WHEN '<30' THEN 1\n    WHEN '30-49' THEN 2\n    WHEN '50-74' THEN 3\n    WHEN '75-99' THEN 4\n    WHEN '100-149' THEN 5\n    WHEN '150-249' THEN 6\n    ELSE 7\nEND;",
           "tags": [
             {
               "name": "room_type",
-              "field_id": 95,
+              "field": "analytics.dim_listings.room_type",
+              "alias": "dim_listings.room_type",
               "widget_type": "string/=",
               "display_name": "Room Type"
             },
             {
               "name": "price_band",
-              "field_id": 97,
+              "field": "analytics.dim_listings.price_band",
+              "alias": "dim_listings.price_band",
               "widget_type": "string/=",
               "display_name": "Price Band"
             },
             {
               "name": "minimum_nights_band",
-              "field_id": 100,
+              "field": "analytics.dim_listings.minimum_nights_band",
+              "alias": "dim_listings.minimum_nights_band",
               "widget_type": "string/=",
               "display_name": "Minimum Nights Band"
             },
             {
               "name": "is_superhost",
-              "field_id": 103,
+              "field": "analytics.dim_listings.is_superhost",
+              "alias": "dim_listings.is_superhost",
               "widget_type": "boolean/=",
               "display_name": "Is Superhost"
             },
             {
               "name": "price",
-              "field_id": 96,
+              "field": "analytics.dim_listings.price",
+              "alias": "dim_listings.price",
               "widget_type": "number/=",
               "display_name": "Price"
             }

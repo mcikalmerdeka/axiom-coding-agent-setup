@@ -31,12 +31,14 @@ metabase/export/.gitkeep
 ```
 
 It skips existing files unless `--force` is passed. The starter
-`definitions.json` uses placeholder `root_collection_id` and `database_id`; fill
-them from the API discovery below.
+`definitions.json` uses a root collection **name** and a database **name**, and
+resolves field IDs from live metadata at seed time. No instance-local IDs need
+to be committed.
 
 ## Preconditions
 
-- Metabase is running and connected to the analytics database.
+- Metabase is running and connected to the analytics database (PostgreSQL or
+  BigQuery; see [`bigquery-workspace.md`](bigquery-workspace.md)).
 - An analysis-ready table/model exists with a known grain.
 - You have an **API key** in the Administrators group.
 - The project `.env` contains:
@@ -76,7 +78,8 @@ Everything in Metabase is ID-based. Collect these before writing definitions.
 | A dashboard | `GET /api/dashboard/{id}` |
 
 Build a map of `schema.table.column` → `field_id`. Field Filters need the
-numeric field ID, not a table/column string.
+numeric field ID at API time, but definitions should store the stable
+`schema.table.column` string and let the seeder resolve the current ID.
 
 ```text
 analytics.dim_listings.room_type      -> 95
@@ -86,8 +89,9 @@ analytics.fct_reviews.review_date     -> 113
 analytics.mart_executive_kpis.month_start -> 122
 ```
 
-Record the `database_id` too. A native SQL card's `dataset_query.database` is
-this numeric ID.
+The database is also instance-local. Store its **name** (for example
+`Airbnb Analytics`) in the definitions and have the seeder look up the numeric
+`dataset_query.database` ID at runtime.
 
 ## 3. Definitions file
 
@@ -96,9 +100,8 @@ not edit generated metadata by hand.
 
 ```json
 {
-  "root_collection_id": 5,
   "root_collection_name": "Airbnb Analytics",
-  "database_id": 2,
+  "database_name": "Airbnb Analytics",
   "dashboards": [
     {
       "key": "supply",
@@ -136,8 +139,8 @@ filters and their tag mappings. Its schema is in
 
 | Field | Meaning |
 | --- | --- |
-| `root_collection_id` | Existing parent collection; its children are the dashboard collections |
-| `database_id` | Metabase database ID used by every native SQL card |
+| `root_collection_name` | Existing top-level collection; its children are the dashboard collections |
+| `database_name` | Metabase database name; resolved to an ID at seed time |
 | `skip` | `true` for a dashboard that is already complete and must not be touched |
 | `key` | Stable internal key for logging and filtering |
 | `collection` | Child collection name; created under the root if missing |
@@ -153,17 +156,20 @@ filters and their tag mappings. Its schema is in
 ```json
 {
   "name": "room_type",
-  "field_id": 95,
+  "field": "analytics.dim_listings.room_type",
+  "alias": "dim_listings.room_type",
   "widget_type": "string/=",
   "display_name": "Room Type"
 }
 ```
 
 - The SQL must contain `{{room_type}}` in a `WHERE` clause.
-- The tag's `field_id` must belong to a table present in the query.
+- `field` is stable and instance-independent; the seeder resolves it to a field
+  ID from `GET /api/database/{id}/metadata`.
+- `alias` is optional on PostgreSQL, but **required on BigQuery**: SQL must use
+  `FROM analytics.dim_listings AS dim_listings` and the alias must be the full
+  `dim_listings.room_type`.
 - `widget_type`: `string/=`, `boolean/=`, `number/=`, or `date/all-options`.
-- If the SQL aliases a table, either add the alias to the tag or rewrite the
-  SQL to use the unaliased table name. Prefer unaliased SQL for generated cards.
 - For a joined card, map each tag to the correct source field; a tag named
   `room_type` may belong to the joined dimension, not the fact table.
 
@@ -198,7 +204,8 @@ holds the numeric measure.
 2. Check every `{{tag}}` in the SQL has a matching tag entry, and vice versa.
 3. Remove optional text-search blocks (`[[AND LOWER(...) LIKE ...]]`) unless you
    also create a plain Text template tag. A Text tag is not a Field Filter.
-4. Confirm every `field_id` exists and belongs to the query's source table.
+4. Confirm every `field` reference resolves and belongs to the query's source
+   table; on BigQuery confirm every tag has an `alias`.
 5. Check for duplicate question names across dashboards. Matching is by name
    within a collection; duplicate names in different collections are fine.
 
@@ -222,10 +229,14 @@ uv run python scripts\seed_metabase.py --definitions ... --dashboard supply --re
 
 Behavior:
 
+- Resolves the database by `database_name` and the root collection by
+  `root_collection_name`.
 - Finds a collection by name under the root; creates it if missing.
-- Finds a card by target name in the collection; reuses it.
+- Finds a card by target name in the collection; reuses it and updates its SQL
+  or tags when the definition changed.
 - If not found, checks each alias; adopts the first match and renames it.
-- Creates missing cards with native SQL and Field Filter tags.
+- Creates missing cards with native SQL and Field Filter tags; resolves every
+  `field` reference from live metadata and applies the tag `alias`.
 - Finds a dashboard by name; creates it if missing.
 - Adds missing cards to the dashboard; preserves extra cards, dashboard
   parameters, tabs, and existing filter mappings.
@@ -273,7 +284,7 @@ Native dataset query for 0.64:
   "stages": [
     {
       "lib/type": "mbql.stage/native",
-      "native": "SELECT COUNT(*) AS total_listings FROM analytics.dim_listings",
+      "native": "SELECT COUNT(*) AS total_listings FROM analytics.dim_listings AS dim_listings",
       "template-tags": []
     }
   ]
@@ -289,9 +300,13 @@ Field Filter tag:
   "widget-type": "string/=",
   "name": "room_type",
   "display-name": "Room Type",
-  "dimension": ["field", {"lib/uuid": "11111111-1111-1111-1111-111111111111"}, 95]
+  "dimension": ["field", {"lib/uuid": "11111111-1111-1111-1111-111111111111"}, 95],
+  "alias": "dim_listings.room_type"
 }
 ```
+
+The numeric `95` is resolved from the live field map at seed time. The `alias`
+is optional on PostgreSQL but required for BigQuery.
 
 The card's `parameters` array mirrors each tag:
 
@@ -361,7 +376,7 @@ yourself.
 
 ```json
 {
-  "root_collection_id": 5,
+  "root_collection_name": "Airbnb Analytics",
   "dashboards": [
     {
       "key": "supply",
@@ -646,7 +661,7 @@ hundreds of thousands of rows; do not execute those just to verify metadata.
 - Take an app-database backup before the first bulk write and before reruns
   that update existing cards.
 - Review the definitions file before running against a shared instance; a
-  wrong `database_id` or field ID can create plausible but incorrect cards.
+  wrong field reference can create plausible but incorrect cards.
 
 ## 11. Worked example
 

@@ -31,8 +31,10 @@ Field Filter version of all 66 cards.
 
 ### 1. Connect the analytics database
 
-Complete the Metabase setup wizard at `http://localhost:3000`, then add a
-PostgreSQL database:
+Complete the Metabase setup wizard at `http://localhost:3000`, then add the
+warehouse connection.
+
+**PostgreSQL**
 
 | Field | Value |
 | --- | --- |
@@ -46,6 +48,21 @@ PostgreSQL database:
 
 Metabase syncs only the schemas the `metabase` user can see. That is
 `analytics`; `staging`, `raw`, and `snapshots` are intentionally inaccessible.
+
+**Google BigQuery**
+
+| Field | Value |
+| --- | --- |
+| Display name | `Airbnb Analytics` |
+| Engine | `bigquery-cloud-sdk` |
+| Project ID | your GCP project |
+| Service account JSON | contents of the dedicated reader key |
+| Dataset filter | inclusion, `analytics` only |
+
+The service account needs dataset `READER` on `analytics` and project
+`jobUser`; do **not** grant project `metadataViewer`. Every native card must
+alias its table and every Field Filter tag must store `table.column`. See
+[`bigquery-workspace.md`](bigquery-workspace.md).
 
 The card tables below use `Model - Listings` for query-builder cards. The
 native SQL companion reads `analytics.dim_listings` directly for the same
@@ -671,7 +688,8 @@ Run these in order after building each dashboard.
    them as query-builder cards or add Field Filter variables and map them.
 7. **Metabase caching.** If a card shows stale values after a `dbt build`,
    use the card menu → **Refresh** or clear the dashboard cache. The data is
-   read live from Postgres unless caching is enabled in admin settings.
+   read live from the warehouse (PostgreSQL or BigQuery) unless caching is enabled
+in admin settings.
 8. **Relative date filters are evaluated against today.** The dataset ends in
    2021, so presets such as "Past 12 months" or "Previous 24 months" return
    nothing in 2026. Use absolute ranges for every dashboard filter and card

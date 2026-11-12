@@ -1,10 +1,13 @@
 # Metabase Parameter Types Reference
 
-This project uses native SQL questions on PostgreSQL. There are three common
-ways to add parameters/filters to a native SQL question in Metabase.
+This project uses native SQL questions on PostgreSQL or Google BigQuery. There
+are three common ways to add parameters/filters to a native SQL question in
+Metabase.
 
-For copy-paste-ready queries for all 66 dashboard cards, see
-[Dashboard SQL with Field Filters](dashboard-sql-with-filters.md).
+For copy-paste-ready PostgreSQL queries for all 66 dashboard cards, see
+[Dashboard SQL with Field Filters](dashboard-sql-with-filters.md). For BigQuery
+connection, dialect, and Field Filter alias rules, see
+[BigQuery Workspace](bigquery-workspace.md).
 
 ## 1. Basic variables (`{{parameter}}`)
 
@@ -75,6 +78,13 @@ WHERE {{room_type}} AND {{price_band}}
 - Choose the database field the variable should filter.
 - If the table is aliased in the SQL, fill in **Table and field alias**
   (for example, `l.room_type`).
+- **BigQuery:** the alias field is required even when you would otherwise leave
+  it blank. Write `FROM analytics.dim_listings AS dim_listings`, map the field
+  to `analytics.dim_listings.room_type`, and set the alias to
+  `dim_listings.room_type`. An unaliased card fails with
+  `Unrecognized name: \`analytics.dim_listings\``; a tag alias containing only
+  `dim_listings` compares a whole row STRUCT to a scalar.
+- **BigQuery engine:** use `bigquery-cloud-sdk`, not `bigquery`.
 
 ### Dashboard behavior
 

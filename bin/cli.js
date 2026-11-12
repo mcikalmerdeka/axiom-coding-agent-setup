@@ -53,6 +53,7 @@ const FILES_TO_DOWNLOAD = [
   '.agents/skills/building-metabase-dashboards/assets/dashboard_filters.example.json',
   '.agents/skills/building-metabase-dashboards/assets/definitions.example.json',
   '.agents/skills/building-metabase-dashboards/references/Metabase_Parameter_Types_Reference.md',
+  '.agents/skills/building-metabase-dashboards/references/bigquery-workspace.md',
   '.agents/skills/building-metabase-dashboards/references/dashboard-build-guide.md',
   '.agents/skills/building-metabase-dashboards/references/dashboard-sql-with-filters.md',
   '.agents/skills/building-metabase-dashboards/references/metabase-api-provisioning.md',
