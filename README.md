@@ -76,7 +76,7 @@ Project-type specific convention files:
 ### .agents/skills/
 Domain-specific skills that can be loaded on-demand:
 - `building-metabase-dashboards/` — Metabase dashboards from SQL (PostgreSQL/BigQuery): KPI cards, Field Filters, API seeding, dashboard filter mapping, JSON export, and app-database backup/restore
-- `data-science-utils/` — Bundled pandas/scikit-learn utilities, EDA reports, eval & tuning helpers
+- `data-science-utils/` — Bundled pandas/scikit-learn utilities: EDA reports, eval & tuning, clustering, dimensionality reduction, A/B tests, and time series
 - `developing-with-streamlit/` — Streamlit app development guides
 - `domain-modeling/` — Domain model, glossary & ADR documentation
 - `fastapi/` — FastAPI best practices and patterns

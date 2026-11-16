@@ -2,7 +2,7 @@
 
 Every public function and class in the bundled `utils` package, grouped by module.
 
-The internal modules `_ml_common.py` and `_plotting.py` are implementation details and are not part of the public API.
+The internal modules `_ml_common.py`, `_unsupervised_common.py`, and `_plotting.py` are implementation details and are not part of the public API.
 
 
 ## Preprocessing
@@ -68,6 +68,26 @@ Regression evaluation, model comparison, and hyperparameter tuning. See [`api/re
 - [`get_hyperparameters`](api/regression.md) — Get hyperparameter grid for a specific regression model
 - [`tune_single_model`](api/regression.md) — Tune a single regression model using grid or random search
 - [`tune_all_models`](api/regression.md) — Tune multiple regression models using grid or random search
+
+## Clustering
+
+Cluster model selection, fitting, evaluation, profiling, and visualization. See [`api/clustering.md`](api/clustering.md).
+
+- [`find_optimal_clusters`](api/clustering.md) — Evaluate a range of cluster counts and plot the selection metrics
+- [`fit_clustering`](api/clustering.md) — Fit a clustering algorithm and return labels plus the fitted estimator
+- [`predict_clusters`](api/clustering.md) — Assign clusters to new data with a fitted model that supports prediction
+- [`evaluate_clustering`](api/clustering.md) — Evaluate clustering quality with internal validation metrics
+- [`profile_clusters`](api/clustering.md) — Summarize cluster size and feature behavior
+- [`plot_clusters`](api/clustering.md) — Plot a 2D embedding colored by cluster label
+- [`plot_cluster_profiles`](api/clustering.md) — Plot a heatmap of cluster profile metrics
+
+## Dimensionality reduction
+
+PCA, TruncatedSVD, and t-SNE with explained-variance diagnostics. See [`api/dimensionality-reduction.md`](api/dimensionality-reduction.md).
+
+- [`reduce_dimensions`](api/dimensionality-reduction.md) — Reduce a numeric feature matrix with PCA, TruncatedSVD, or t-SNE
+- [`explained_variance_table`](api/dimensionality-reduction.md) — Return a table of explained variance for a fitted PCA or TruncatedSVD
+- [`plot_explained_variance`](api/dimensionality-reduction.md) — Plot individual and cumulative explained variance for PCA or TruncatedSVD
 
 ## A/B testing
 

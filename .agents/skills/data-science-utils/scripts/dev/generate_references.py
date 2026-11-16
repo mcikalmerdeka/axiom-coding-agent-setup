@@ -26,6 +26,8 @@ MODULES = [
     ("visualization", "Visualization", "Notebook-friendly distribution, count, relationship, and correlation plots."),
     ("classification_evals_and_tuning", "Classification", "Binary classification evaluation, model comparison, and hyperparameter tuning."),
     ("regression_evals_and_tuning", "Regression", "Regression evaluation, model comparison, and hyperparameter tuning."),
+    ("clustering", "Clustering", "Cluster model selection, fitting, evaluation, profiling, and visualization."),
+    ("dimensionality_reduction", "Dimensionality reduction", "PCA, TruncatedSVD, and t-SNE with explained-variance diagnostics."),
     ("ab_testing", "A/B testing", "Sample sizing, assumption checks, hypothesis tests, and end-to-end experiment analysis."),
     ("time_series", "Time series", "Decomposition, stationarity, feature engineering, splitting, diagnostics, and forecast metrics."),
     ("text_preprocessing", "Text processing", "Text cleaning, tokenization, lemmatization, stemming, word clouds, and frequency analysis."),
@@ -36,6 +38,7 @@ MODULES = [
 OUTPUT_NAMES = {
     "classification_evals_and_tuning": "classification.md",
     "regression_evals_and_tuning": "regression.md",
+    "dimensionality_reduction": "dimensionality-reduction.md",
     "text_preprocessing": "text.md",
     "translation_utils": "translation.md",
     "eda_report": "eda-report.md",
@@ -170,8 +173,8 @@ def build() -> None:
     index_parts = [
         "# API index\n",
         "Every public function and class in the bundled `utils` package, grouped by module.\n",
-        "The internal modules `_ml_common.py` and `_plotting.py` are implementation details "
-        "and are not part of the public API.\n",
+        "The internal modules `_ml_common.py`, `_unsupervised_common.py`, and "
+        "`_plotting.py` are implementation details and are not part of the public API.\n",
     ]
 
     for module_name, title, description in MODULES:

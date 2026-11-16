@@ -63,6 +63,22 @@ from .classification_evals_and_tuning import (
     get_hyperparameters as get_hyperparameters_classification
 )
 
+# Unsupervised learning functions
+from .dimensionality_reduction import (
+    explained_variance_table,
+    plot_explained_variance,
+    reduce_dimensions
+)
+from .clustering import (
+    evaluate_clustering,
+    find_optimal_clusters,
+    fit_clustering,
+    plot_cluster_profiles,
+    plot_clusters,
+    predict_clusters,
+    profile_clusters
+)
+
 # A/B Testing functions
 from .ab_testing import (
     calculate_sample_size,
@@ -169,6 +185,18 @@ __all__ = [
     'tune_all_models_classification',
     'get_model_pipeline_classification',
     'get_hyperparameters_classification',
+
+    # Unsupervised learning
+    'reduce_dimensions',
+    'explained_variance_table',
+    'plot_explained_variance',
+    'find_optimal_clusters',
+    'fit_clustering',
+    'predict_clusters',
+    'evaluate_clustering',
+    'profile_clusters',
+    'plot_clusters',
+    'plot_cluster_profiles',
 
     # A/B Testing
     'calculate_sample_size',

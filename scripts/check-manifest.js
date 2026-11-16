@@ -29,8 +29,15 @@ function toPosix(filePath) {
 function walk(dir, base = dir) {
   if (!fs.existsSync(dir)) return [];
   return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
-    const full = path.join(dir, entry.name);
-    return entry.isDirectory() ? walk(full, base) : [toPosix(path.relative(base, full))];
+    // Python bytecode and virtualenvs are gitignored, so they are never
+    // published or downloadable. Ignoring them keeps the check from failing
+    // after the data-science-utils smoke test creates __pycache__.
+    if (entry.isDirectory()) {
+      if (entry.name === '__pycache__' || entry.name === '.venv') return [];
+      return walk(path.join(dir, entry.name), base);
+    }
+    if (/\.py[cod]$/.test(entry.name)) return [];
+    return [toPosix(path.relative(base, path.join(dir, entry.name)))];
   });
 }
 

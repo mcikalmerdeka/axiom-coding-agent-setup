@@ -33,15 +33,22 @@ def main() -> int:
         describe_numerical_combined,
         eval_classification,
         eval_regression,
+        evaluate_clustering,
         evaluate_forecast,
         feature_encoding,
         feature_scaling,
         filter_outliers,
+        find_optimal_clusters,
+        fit_clustering,
         generate_eda_report,
         get_model_pipeline_classification,
         get_model_pipeline_regression,
         handle_missing_values,
         identify_distribution_types,
+        plot_clusters,
+        predict_clusters,
+        profile_clusters,
+        reduce_dimensions,
         split_time_series,
     )
 
@@ -82,6 +89,28 @@ def main() -> int:
 
     scaled, scaler = feature_scaling(imputed, columns=["age", "income"], method="standard")
     assert scaler is not None and scaled[["age", "income"]].notna().all().all()
+
+    reduced, pca = reduce_dimensions(
+        scaled[["age", "income"]], method="pca", n_components=2
+    )
+    labels, kmeans = fit_clustering(
+        reduced, algorithm="kmeans", n_clusters=2, random_state=42
+    )
+    clustering_metrics = evaluate_clustering(reduced, labels)
+    assert clustering_metrics["n_clusters"] == 2
+    assert len(predict_clusters(kmeans, reduced.iloc[:5])) == 5
+    cluster_profile = profile_clusters(
+        imputed, labels, numeric_agg={"age": "mean"}, categorical_agg=None
+    )
+    assert "age_mean" in cluster_profile.columns
+    selection, _ = find_optimal_clusters(
+        reduced, k_range=range(2, 4), plot=False
+    )
+    assert "silhouette" in selection.columns
+    cluster_figure = plot_clusters(reduced, labels, show=False)
+    import matplotlib.pyplot as plt
+
+    plt.close(cluster_figure)
 
     train, test = train_test_split(
         imputed, test_size=0.25, random_state=42, stratify=imputed["churned"]

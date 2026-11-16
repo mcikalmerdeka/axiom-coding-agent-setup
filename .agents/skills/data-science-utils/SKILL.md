@@ -1,6 +1,6 @@
 ---
 name: data-science-utils
-description: Reusable Python utilities for tabular data science. Use for data inspection and cleaning, missing-value imputation, outlier filtering, feature scaling and encoding, feature selection, descriptive statistics, EDA plots and self-contained HTML reports, classification and regression evaluation and tuning with scikit-learn, A/B testing, time-series analysis, text preprocessing, and language detection or translation. Trigger when a task involves pandas DataFrames, scikit-learn models, exploratory data analysis, model diagnostics, experiment analysis, forecasting, or NLP preparation in Python.
+description: Reusable Python utilities for tabular data science. Use for data inspection and cleaning, missing-value imputation, outlier filtering, feature scaling and encoding, feature selection, descriptive statistics, EDA plots and self-contained HTML reports, classification and regression evaluation and tuning with scikit-learn, clustering and dimensionality reduction, A/B testing, time-series analysis, text preprocessing, and language detection or translation. Trigger when a task involves pandas DataFrames, scikit-learn models, exploratory data analysis, model diagnostics, customer segmentation, experiment analysis, forecasting, or NLP preparation in Python.
 compatibility: Requires Python 3.14+ and the core packages in requirements.txt. Text and translation helpers need the optional dependencies in requirements-optional.txt.
 metadata:
   version: "0.1.0"
@@ -24,6 +24,8 @@ Use this skill when the user wants to:
 - Preprocess features: scale, transform, and encode categorical variables for scikit-learn.
 - Select features with correlations, chi-square tests, VIF, or univariate importance.
 - Evaluate or tune a binary classifier or a regressor with repeated cross-validation.
+- Segment observations with KMeans, AgglomerativeClustering, DBSCAN, or GaussianMixture, and evaluate or profile the clusters.
+- Reduce dimensions with PCA, TruncatedSVD, or t-SNE, and inspect explained variance.
 - Analyze an A/B test: sample size, normality, variance, t-test, Mann-Whitney, chi-square, z-test.
 - Analyze a time series: decomposition, stationarity, lag/rolling/date features, walk-forward CV, forecast metrics.
 - Clean text, build word clouds, detect languages, or translate text columns.
@@ -139,13 +141,15 @@ from utils.regression_evals_and_tuning import (
 | `visualization` | Distribution, count, relationship, and correlation plots | [visualization.md](references/api/visualization.md) |
 | `classification_evals_and_tuning` | Binary classification diagnostics and tuning | [classification.md](references/api/classification.md) |
 | `regression_evals_and_tuning` | Regression diagnostics and tuning | [regression.md](references/api/regression.md) |
+| `clustering` | Cluster selection, fitting, evaluation, profiling, plots | [clustering.md](references/api/clustering.md) |
+| `dimensionality_reduction` | PCA, TruncatedSVD, t-SNE, variance diagnostics | [dimensionality-reduction.md](references/api/dimensionality-reduction.md) |
 | `ab_testing` | Sample sizing, assumption checks, hypothesis tests | [ab-testing.md](references/api/ab-testing.md) |
 | `time_series` | Decomposition, stationarity, features, CV, forecast metrics | [time-series.md](references/api/time-series.md) |
 | `text_preprocessing` | Text cleaning, tokenization, word clouds, frequency analysis | [text.md](references/api/text.md) |
 | `translation_utils` | Language detection and batched translation | [translation.md](references/api/translation.md) |
 | `eda_report` | Self-contained HTML EDA report | [eda-report.md](references/api/eda-report.md) |
 
-The complete public API is indexed in [references/api-index.md](references/api-index.md). `_ml_common.py` and `_plotting.py` are internal implementation details.
+The complete public API is indexed in [references/api-index.md](references/api-index.md). `_ml_common.py`, `_unsupervised_common.py`, and `_plotting.py` are internal implementation details.
 
 ## Workflow recipes
 
@@ -550,6 +554,52 @@ html = generate_eda_report(
 
 The report includes data quality, summaries, correlations, distributions, categorical counts, and optional target analysis. Images are embedded as base64, so the file is self-contained and can be large.
 
+### J. Clustering and dimensionality reduction
+
+```python
+from utils import (
+    evaluate_clustering,
+    feature_scaling,
+    find_optimal_clusters,
+    fit_clustering,
+    plot_clusters,
+    profile_clusters,
+    reduce_dimensions,
+)
+
+# 1. Encode and scale first. Unsupervised helpers never preprocess implicitly.
+X = df[features]
+X_scaled, scaler = feature_scaling(X, columns=features, method="standard")
+
+# 2. Reduce dimensions. A float n_components keeps enough variance.
+X_pca, pca = reduce_dimensions(X_scaled, method="pca", n_components=0.85)
+new_pca = pca.transform(new_scaled)
+
+# 3. Choose k. KMeans adds inertia; GMM adds BIC/AIC; every k-based
+# algorithm reports silhouette, Calinski-Harabasz, and Davies-Bouldin.
+results, fig = find_optimal_clusters(X_pca, k_range=range(2, 11))
+best_k = results["silhouette"].idxmax()
+
+# 4. Fit and evaluate.
+labels, kmeans = fit_clustering(
+    X_pca, algorithm="kmeans", n_clusters=int(best_k)
+)
+metrics = evaluate_clustering(X_pca, labels)
+
+# 5. Profile and visualize.
+profile = profile_clusters(
+    df,
+    labels,
+    numeric_agg={"Income": "mean", "Total_Spending": ["mean", "median"]},
+)
+plot_clusters(X_pca, labels)
+
+# 6. New-data prediction works for KMeans and GaussianMixture.
+new_labels = kmeans.predict(new_pca)
+```
+
+DBSCAN uses `n_clusters=None` and tunes `eps`/`min_samples`; noise points are labeled `-1`. AgglomerativeClustering and DBSCAN do not support `.predict`, so use KMeans or GaussianMixture when new-data assignment is required. t-SNE is visualization-only and has no `.transform`.
+
 ## Return-value contract
 
 | Function | Returns |
@@ -568,6 +618,14 @@ The report includes data quality, summaries, correlations, distributions, catego
 | `tune_pipelines` | `(dict_of_search_objects, fit_times)` |
 | `tune_single_model` | `(search_object, fit_time)` |
 | `tune_all_models` | `(dict_of_search_objects, fit_times)` |
+| `reduce_dimensions` | `(reduced_df, fitted_reducer)` |
+| `explained_variance_table` | `pd.DataFrame` |
+| `find_optimal_clusters` | `(metrics_df, figure_or_None)` |
+| `fit_clustering` | `(labels_series, fitted_estimator)` |
+| `predict_clusters` | `pd.Series` |
+| `evaluate_clustering` | metrics `dict` |
+| `profile_clusters` | `pd.DataFrame` |
+| `plot_explained_variance`, `plot_clusters`, `plot_cluster_profiles` | `Figure` |
 | `generate_eda_report` | HTML `str` |
 
 ## Leakage-safe sequence
@@ -587,6 +645,10 @@ The report includes data quality, summaries, correlations, distributions, catego
 - **Log transforms:** `feature_scaling(..., apply_log=True)` raises if any observed value is negative. `power` with `box-cox` requires strictly positive values; use `yeo-johnson` otherwise.
 - **Encoding defaults:** `drop_first=True` drops the first one-hot category. Mean encoding requires `target` on train and `encoders` on test. Unknown categories are controlled by `handle_unknown`.
 - **Outlier filtering:** `filter_outliers` keeps `NaN` rows and does not mutate the input. `detect_only=True` returns a summary; `return_mask=True` returns `(filtered_df, mask)`.
+- **Unsupervised inputs:** encode categorical columns with `feature_encoding`, handle missing values, and scale with `feature_scaling` before clustering or dimensionality reduction. The helpers raise on non-numeric, NaN, or infinite input.
+- **t-SNE is visualization-only:** the fitted TSNE object has no `transform`; refit it for new data. PCA and TruncatedSVD support `.transform`.
+- **Cluster prediction:** KMeans and GaussianMixture support `predict`; AgglomerativeClustering and DBSCAN do not. `predict_clusters` raises an actionable error for those models.
+- **Cluster labels:** `fit_clustering` returns an index-aligned `pd.Series` named `cluster`; DBSCAN noise is `-1`. `profile_clusters` and `evaluate_clustering` include noise in counts while reporting `n_noise` separately.
 - **Time-series hygiene:** decomposition and ACF/PACF plots expect a regularly spaced series without missing values; resample or interpolate first. Lag and rolling features create leading `NaN`s, so drop or impute them before fitting.
 - **Language detection on Windows/notebooks:** `detect_language_rows` uses process-based parallelism by default. If the process pool misbehaves, set `use_parallel=False`.
 - **Plotting in batch jobs:** call `show_plots=False` on `eval_*` and `show=False` on tuning helpers to avoid blocking. Use `display=False` to suppress logs. `return_figures=True` adds figures to classification metrics.
@@ -604,6 +666,8 @@ The report includes data quality, summaries, correlations, distributions, catego
 - [Visualization](references/api/visualization.md)
 - [Classification](references/api/classification.md)
 - [Regression](references/api/regression.md)
+- [Clustering](references/api/clustering.md)
+- [Dimensionality reduction](references/api/dimensionality-reduction.md)
 - [A/B testing](references/api/ab-testing.md)
 - [Time series](references/api/time-series.md)
 - [Text processing](references/api/text.md)
@@ -618,5 +682,7 @@ Before reporting a result as complete:
 - [ ] The target project can import the functions used.
 - [ ] Train/test transforms were fit on train and reused on test.
 - [ ] `eval_classification` received a binary target and a `predict_proba` model.
+- [ ] Unsupervised inputs were numeric and finite, with categorical columns encoded and features scaled first.
+- [ ] t-SNE was used only for visualization, and DBSCAN/Agglomerative were not asked to predict new data.
 - [ ] Plots were suppressed in headless runs, or saved explicitly.
 - [ ] Optional dependencies are installed before calling text or translation helpers.
