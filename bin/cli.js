@@ -217,6 +217,7 @@ const FILES_TO_DOWNLOAD = [
   '.agents/skills/project-design/references/ARCHITECTURE.md',
   '.agents/skills/project-design/references/PROJECT_PLAN.md',
   '.agents/skills/prompt-creation/SKILL.md',
+  '.agents/skills/running-notebooks/SKILL.md',
   '.agents/skills/to-spec/SKILL.md',
   '.agents/skills/to-spec/agents/openai.yaml',
   '.agents/skills/to-tickets/SKILL.md',

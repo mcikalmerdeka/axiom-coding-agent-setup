@@ -89,6 +89,7 @@ Domain-specific skills that can be loaded on-demand:
 - `mcp-builder/` — MCP server development guide
 - `project-design/` — Project planning & architecture documentation
 - `prompt-creation/` — Generate implementation prompts for AI handoff
+- `running-notebooks/` — Build, execute, and verify Jupyter notebooks end-to-end
 - `to-spec/` — Turn a conversation into a published spec
 - `to-tickets/` — Break plans/specs into tracer-bullet tickets
 - `triage/` — Issue & PR triage workflow
