@@ -50,7 +50,7 @@ The main instruction file that coding agents (Claude, Cursor, OpenCode, etc.) re
 
 ### opencode.json
 OpenCode V2 configuration (native `mcp.servers` format) including:
-- MCP server definitions (remote tools like n8n, Neon, Gradio, etc.)
+- MCP server definitions (remote docs/tools plus local servers such as Power BI modeling)
 - Plugin configuration
 - Environment variable references for secure credential management
 
@@ -86,6 +86,7 @@ Domain-specific skills that can be loaded on-demand:
 - `grill-with-docs/` — Design interview that sharpens plans into ADRs & glossary
 - `grilling/` — Stress-test plans with relentless questioning
 - `huggingface-deployment/` — Deploy apps to Hugging Face Spaces
+- `installing-powerbi-skills/` — Install Power BI modeling and report skills into a project on demand
 - `mcp-builder/` — MCP server development guide
 - `project-design/` — Project planning & architecture documentation
 - `prompt-creation/` — Generate implementation prompts for AI handoff

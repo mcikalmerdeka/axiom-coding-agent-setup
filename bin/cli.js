@@ -212,6 +212,7 @@ const FILES_TO_DOWNLOAD = [
   '.agents/skills/grilling/SKILL.md',
   '.agents/skills/grilling/agents/openai.yaml',
   '.agents/skills/huggingface-deployment/SKILL.md',
+  '.agents/skills/installing-powerbi-skills/SKILL.md',
   '.agents/skills/mcp-builder/SKILL.md',
   '.agents/skills/project-design/SKILL.md',
   '.agents/skills/project-design/references/ARCHITECTURE.md',

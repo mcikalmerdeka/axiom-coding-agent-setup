@@ -45,6 +45,19 @@
       "eraser": {
         "type": "remote",
         "url": "https://app.eraser.io/api/mcp"
+      },
+      "powerbi-modeling": {
+        "type": "local",
+        "command": [
+          "npx",
+          "-y",
+          "@microsoft/powerbi-modeling-mcp@latest",
+          "--start"
+        ],
+        "timeout": {
+          "startup": 180000,
+          "catalog": 60000
+        }
       }
     }
   }
